@@ -13,10 +13,10 @@ interface Network<T : CacheKey> {
     fun extractKey(key: MobConfigKey): T
 }
 
-internal interface Internet {
+internal interface CustomNet {
     var network: Network<out CacheKey>
 }
 
-internal class ConfigNet : Internet {
+internal class ConfigNet : CustomNet {
     override lateinit var network: Network<out CacheKey>
 }

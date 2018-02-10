@@ -32,10 +32,10 @@ object Publess {
     }
 }
 
-internal object ConfigCenter :
-        PluginSupport by ConfigPluginSupport(), //插件化支持
-        PickupCenter by InBox(), //取件中心
-        Distribution by Dispatcher(), //分发中心
+internal object ConfigCenter : //快递中心
+        PluginSupport by ConfigPluginSupport(), //跨省支持
+        PickupCenter by InBox(), //取件箱
+        Distribution by Dispatcher(), //分发派件
         Repository by ConfigRepository(), //仓库
-        Internet by ConfigNet(),
-        CLogger by ConfigLogger() //日志
+        CustomNet by ConfigNet(), //个性化物流
+        Logger by ConfigLogger() //记账

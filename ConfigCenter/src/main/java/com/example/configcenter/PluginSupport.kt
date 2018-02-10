@@ -5,6 +5,9 @@ package com.example.configcenter
  * E-mail: zhangyu4@yy.com
  * YY: 909017428
  */
+/**
+ * # 插件化支持
+ */
 internal interface PluginSupport {
     fun initPlugin(pluginEntry: Any)
 

@@ -5,25 +5,22 @@ package com.example.configcenter
  * E-mail: zhangyu4@yy.com
  * YY: 909017428
  */
-internal interface CLogger : ILog {
+internal interface Logger : ILog {
     var logger: ILog
 }
 
-internal class ConfigLogger : CLogger {
-    override var logger: ILog = object : ILog {
-        override fun i(info: String) {
-            //Log.i("Publess", info)
-        }
-
-        override fun e(error: String) {
-            //Log.e("publess", error)
-        }
-    }
+internal class ConfigLogger : Logger {
+    override var logger: ILog = Quiet
 
     override fun i(info: String) = logger.i(info)
 
-
     override fun e(error: String) = logger.e(error)
+}
+
+object Quiet : ILog {
+    override fun i(info: String) {}
+
+    override fun e(error: String) {}
 }
 
 interface ILog {

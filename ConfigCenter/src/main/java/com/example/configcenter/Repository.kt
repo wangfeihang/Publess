@@ -106,21 +106,19 @@ private class CacheRemoteRepos<T : CacheKey>(
             net.performNetwork(req)
                     .subscribeOn(Schedulers.io())
                     .subscribe({
+                        ConfigCenter.logger.i("network request success for $req with ${it.bssCode}")
                         if (!e.isDisposed) e.onSuccess(it)
 
                         synchronized(cacheMap) {
-                            cacheMap[req]
-                                    ?.filterNot { it.isDisposed }
-                                    ?.forEach { e -> e.onSuccess(it) }
+                            cacheMap[req]?.forEach { e -> e.onSuccess(it) }
                             cacheMap.remove(req)
                         }
                     }, {
+                        ConfigCenter.logger.e("network request fail with $it")
                         if (!e.isDisposed) e.onError(it)
 
                         synchronized(cacheMap) {
-                            cacheMap[req]
-                                    ?.filterNot { it.isDisposed }
-                                    ?.forEach { e -> e.onError(it) }
+                            cacheMap[req]?.forEach { e -> e.onError(it) }
                             cacheMap.remove(req)
                         }
                     })

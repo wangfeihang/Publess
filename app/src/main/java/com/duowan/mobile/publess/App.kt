@@ -14,8 +14,8 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        Publess.initPlugin(this)
         Publess.enableLog(PublessLog())
+        Publess.initPlugin(this)
         Publess.performNetwork(FadeNetwork())
     }
 }
