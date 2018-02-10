@@ -32,9 +32,10 @@ internal class InBox : PickupCenter {
 
     @Suppress("UNCHECKED_CAST")
     @Throws(InstantiationException::class, IllegalAccessException::class)
-    override fun <D> get(configCls: Class<out BaseConfig<D>>): BaseConfig<D> = configMap[configCls] as? BaseConfig<D>
-            ?: throw IllegalArgumentException("cannot find the config of " +
-            "the data $configCls,is it annotated by @BssConfig?")
+    override fun <D> get(configCls: Class<out BaseConfig<D>>): BaseConfig<D> =
+            configMap[configCls] as? BaseConfig<D>
+                    ?: throw IllegalArgumentException("cannot find the config of " +
+                            "the data $configCls,is it annotated by @BssConfig?")
 
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalArgumentException::class)
@@ -42,22 +43,25 @@ internal class InBox : PickupCenter {
             ?: throw IllegalArgumentException("the bssCode [$bssCode] is not exist")
 
     @Suppress("UNCHECKED_CAST")
-    @Throws(ClassCastException::class)
-    override fun <D> of(dataCls: Class<out D>): BaseConfig<D>
-            = (dataMap[dataCls] ?: initDataConfig(dataCls)) as? BaseConfig<D>
+    override fun <D> of(dataCls: Class<out D>): BaseConfig<D> = (dataMap[dataCls]
+            ?: initDataConfig(dataCls)) as? BaseConfig<D>
             ?: throw IllegalArgumentException("cannot find the config of " +
-            "the data $dataCls,is it annotated by @BssConfig?")
+                    "the data $dataCls,is it annotated by @BssConfig?")
 
     @Suppress("UNCHECKED_CAST")
-    @Throws(ClassCastException::class)
     @Synchronized
     private fun <D> initDataConfig(dataCls: Class<out D>): BaseConfig<D> {
+        ConfigCenter.logger.i("initDataConfig: $dataCls")
         val config = dataMap[dataCls]
         if (config != null) {
             return config as BaseConfig<D>
         }
-        val initializer = Class.forName("${dataCls.name}${'$'}${'$'}Initializer").newInstance() as PluginInitialization
-        initializer.loadInto(dataMap)
+        val initializer = Class.forName("${dataCls.name}${'$'}${'$'}Initializer")
+                .newInstance() as PluginInitialization
+        val map = mutableMapOf<Class<*>, BaseConfig<*>>()
+        initializer.loadInto(map)
+        ConfigCenter.logger.i("success load data class and config: $map")
+        ConfigCenter.initConfig(map)
         return dataMap[dataCls] as BaseConfig<D>
     }
 

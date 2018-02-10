@@ -47,11 +47,16 @@ public class ConfigProcessor extends AbstractProcessor {
             ClassName.get("com.google.gson.reflect", "TypeToken");
     private static final ClassName Publess_ClsName =
             ClassName.get("com.example.configcenter", "Publess");
-    private static final ClassName JSONException_ClsName = ClassName.get("org.json", "JSONException");
-    private static final ClassName JSONObject_ClsName = ClassName.get("org.json", "JSONObject");
+    private static final ClassName JSONException_ClsName = ClassName.get("org.json",
+            "JSONException");
+    private static final ClassName NumberFormatException_ClsName =
+            ClassName.get(NumberFormatException.class);
+    private static final ClassName JSONObject_ClsName = ClassName.get("org.json",
+            "JSONObject");
     private static final ClassName Map_ClsName = ClassName.get(Map.class);
     private static final ClassName String_clsName = ClassName.get(String.class);
-    private static final ClassName Gson_clsName = ClassName.get("com.google.gson", "Gson");
+    private static final ClassName Gson_clsName = ClassName.get("com.google.gson",
+            "Gson");
 
     @Override
     public SourceVersion getSupportedSourceVersion() {
@@ -125,6 +130,7 @@ public class ConfigProcessor extends AbstractProcessor {
         writeFile(classSpecs, packageName);
     }
 
+    @SuppressWarnings("UnnecessaryContinue")
     private MethodSpec generateParseMethod(TypeName dataCls, List<? extends Element> members) {
 
         MethodSpec.Builder methodSpec = MethodSpec.methodBuilder("parse")
@@ -220,6 +226,7 @@ public class ConfigProcessor extends AbstractProcessor {
         return methodSpec.build();
     }
 
+    @SuppressWarnings("SameParameterValue")
     private void checkMethodParams(ExecutableElement method, int numOfParam) {
         List<? extends Element> params = method.getParameters();
         if (params.size() != numOfParam) {
@@ -275,6 +282,9 @@ public class ConfigProcessor extends AbstractProcessor {
             method.beginControlFlow("catch($T e)", JSONException_ClsName);
             method.addStatement("$T.logger().e(e.toString())", Publess_ClsName);
             method.endControlFlow();
+//            method.beginControlFlow("catch($T e)", NumberFormatException_ClsName);
+//            method.addStatement("$T.logger().e(e.toString())", Publess_ClsName);
+//            method.endControlFlow();
         }
         method.endControlFlow();
         cnt++;
@@ -355,7 +365,7 @@ public class ConfigProcessor extends AbstractProcessor {
         for (Map.Entry<ClassName, String> entry : mapDataToConfig.entrySet()) {
             loadInto.addStatement("config.put($T.class, new " + entry.getValue() + "())", entry.getKey());
         }
-        TypeSpec cls = TypeSpec.classBuilder(pluginName + "_ConfigCenter_Initialization")
+        TypeSpec cls = TypeSpec.classBuilder(pluginName + "$ConfigCenter$Initialization")
                 .addModifiers(Modifier.PUBLIC)
                 .addSuperinterface(PluginInitialization_ClsName)
                 .addMethod(loadInto.build())

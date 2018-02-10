@@ -7,19 +7,27 @@ package com.example.configcenter
  */
 internal interface PluginSupport {
     fun initPlugin(pluginEntry: Any)
+
+    fun initConfig(map: Map<Class<*>, BaseConfig<*>>)
 }
 
 internal class ConfigPluginSupport : PluginSupport {
 
     override fun initPlugin(pluginEntry: Any) {
-        val loaderClassName = pluginEntry::class.java.name + "_ConfigCenter_Initialization"
+        ConfigCenter.logger.i("initPlugin: $pluginEntry")
+        val loaderClassName = pluginEntry::class.java.name + "${'$'}ConfigCenter${'$'}Initialization"
         val loader = Class.forName(loaderClassName).getConstructor().newInstance() as PluginInitialization
-        ConfigCenter.getDataConfigMap().let {
-            loader.loadInto(it)
-            it.forEach {
-                ConfigCenter.getClassConfigMap()[it.value.javaClass] = it.value
-                ConfigCenter.getBssConfigMap()[it.value.bssCode] = it.value
-            }
+        val map = mutableMapOf<Class<*>, BaseConfig<*>>()
+        loader.loadInto(map)
+        ConfigCenter.logger.i("success load data class and config: $map")
+        initConfig(map)
+    }
+
+    override fun initConfig(map: Map<Class<*>, BaseConfig<*>>) {
+        ConfigCenter.getDataConfigMap().putAll(map)
+        for (config in map.values) {
+            ConfigCenter.getClassConfigMap()[config.javaClass] = config
+            ConfigCenter.getBssConfigMap()[config.bssCode] = config
         }
     }
 }

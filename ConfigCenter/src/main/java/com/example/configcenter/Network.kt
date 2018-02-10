@@ -7,16 +7,16 @@ import io.reactivex.Single
  * E-mail: zhangyu4@yy.com
  * YY: 909017428
  */
-interface Network {
-    fun performNetwork(req: CacheKey): Single<MobConfigValue>
+interface Network<T : CacheKey> {
+    fun performNetwork(req: T): Single<MobConfigValue>
 
-    fun extractKey(key: MobConfigKey): CacheKey
+    fun extractKey(key: MobConfigKey): T
 }
 
 internal interface Internet {
-    var network: Network
+    var network: Network<out CacheKey>
 }
 
 internal class ConfigNet : Internet {
-    override lateinit var network: Network
+    override lateinit var network: Network<out CacheKey>
 }

@@ -47,7 +47,7 @@ internal class Dispatcher : Distribution {
 
     override fun <D> placeOrder(order: BaseConfig<D>): Single<D> {
 
-        val key = MobConfigKey(order.bssCode, order.bssVersion, 0)
+        val key = MobConfigKey(order.bssCode, order.bssVersion)
 
         return ConfigCenter.getData(key)
                 .map { pack(order, it) }

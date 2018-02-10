@@ -16,7 +16,7 @@ object Publess {
     fun <D> of(dataCls: Class<D>): BaseConfig<D> = ConfigCenter.of(dataCls)
 
     @JvmStatic
-    fun initplugin(pluginEntry: Any): Unit = ConfigCenter.initPlugin(pluginEntry)
+    fun initPlugin(pluginEntry: Any): Unit = ConfigCenter.initPlugin(pluginEntry)
 
     @JvmStatic
     fun enableLog(logger: ILog) {
@@ -27,7 +27,7 @@ object Publess {
     fun logger(): ILog = ConfigCenter.logger
 
     @JvmStatic
-    fun perfomNetwork(network: Network) {
+    fun performNetwork(network: Network<out CacheKey>) {
         ConfigCenter.network = network
     }
 }
@@ -36,6 +36,6 @@ internal object ConfigCenter :
         PluginSupport by ConfigPluginSupport(), //插件化支持
         PickupCenter by InBox(), //取件中心
         Distribution by Dispatcher(), //分发中心
-        Repository<MobConfigKey, MobConfigValue> by ConfigRepository(), //仓库
+        Repository by ConfigRepository(), //仓库
         Internet by ConfigNet(),
         CLogger by ConfigLogger() //日志
