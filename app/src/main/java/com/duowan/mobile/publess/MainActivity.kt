@@ -4,6 +4,8 @@ import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import com.example.configcenter.Publess
+import io.reactivex.Observable
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
@@ -57,5 +59,12 @@ class MainActivity : AppCompatActivity() {
         Publess.of(ExtendData::class.java).update()
 
         Publess.of(AppData::class.java).update()
+
+        Observable.timer(1, TimeUnit.SECONDS)
+                .flatMap { Observable.fromArray(1, 2, 3, 4, 5) }
+                .flatMapSingle { Publess.of(AppData::class.java).pull() }
+                .subscribe { e ->
+                    Log.i("Publess", "1s later $e")
+                }
     }
 }

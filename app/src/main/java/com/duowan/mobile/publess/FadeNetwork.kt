@@ -27,7 +27,7 @@ class FadeNetwork : Network<CustomRequest> {
     var cnt = 0
 
     override fun extractKey(key: MobConfigKey): CustomRequest {
-        return CustomRequest(key.bssCode, (cnt++ % 2).toLong())
+        return CustomRequest(key.bssCode, (cnt % 2).toLong())
     }
 }
 

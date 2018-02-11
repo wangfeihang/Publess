@@ -85,7 +85,7 @@ internal class Dispatcher : Distribution {
     private fun <D, T : CacheKey> placeOrder(order: BaseConfig<D>, net: Network<T>): Single<D> {
         ConfigCenter.logger.d("placeOrder for ${order.bssCode}")
         val mobKey = MobConfigKey(order.bssCode, order.bssVersion)
-        val req: T = net.extractKey(mobKey)
+        val req = net.extractKey(mobKey)
         return repo.getData(order, mobKey, req, net::performNetwork)
     }
 }

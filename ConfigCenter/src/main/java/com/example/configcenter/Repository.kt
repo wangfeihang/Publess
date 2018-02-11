@@ -1,5 +1,6 @@
 package com.example.configcenter
 
+import com.example.configcenter.MemoryRepo.Companion.cacheTime
 import com.google.gson.JsonParseException
 import io.reactivex.Single
 import io.reactivex.SingleEmitter
@@ -32,7 +33,7 @@ typealias Net<T> = (T) -> Single<MobConfigValue>
 
 internal class ConfigRepository : Repository {
 
-    private val remote = CacheRepos(RemoteRepos())
+    private val remote = CacheRepos(MemoryRepo(RemoteRepos()))
     private val local = LocalRepo()
 
     override fun <DATA, KEY : CacheKey> getData(
@@ -53,6 +54,42 @@ internal class ConfigRepository : Repository {
 }
 
 /**
+ * Decorator Pattern
+ *
+ * if there are a lot of same requests within specified time [cacheTime],
+ * it will directly take the memory result
+ */
+private class MemoryRepo(private val repo: Repository) : Repository {
+
+    companion object {
+        const val cacheTime = 2 * 60 * 1000L
+    }
+
+    private val lastTime = mutableMapOf<String, Pair<CacheKey, Long>>()
+
+    override fun <DATA, KEY : CacheKey> getData(
+            config: BaseConfig<DATA>,
+            mobKey: MobConfigKey,
+            req: KEY,
+            net: Net<KEY>): Single<DATA> {
+
+        val pair = lastTime[config.bssCode]
+        if (pair != null) {
+            val (key, time) = pair
+            if (key == req && System.currentTimeMillis() - time < cacheTime) {
+                ConfigCenter.logger.i("hit memory cache of ${config.bssCode}")
+                return Single.just(config.data)
+            }
+        }
+
+        return repo.getData(config, mobKey, req, net)
+                .doOnSuccess {
+                    lastTime[config.bssCode] = Pair(req, System.currentTimeMillis())
+                }
+    }
+}
+
+/**
  * read from local
  */
 private class LocalRepo : Repository {
@@ -61,7 +98,7 @@ private class LocalRepo : Repository {
             mobKey: MobConfigKey,
             req: KEY,
             net: Net<KEY>): Single<DATA> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        TODO("not implemented") //有空再写
     }
 }
 
@@ -74,6 +111,7 @@ private class RemoteRepos : Repository {
             mobKey: MobConfigKey,
             req: KEY,
             net: (KEY) -> Single<MobConfigValue>): Single<DATA> {
+        ConfigCenter.logger.i("start network request for ${config.bssCode}")
         return net(req)
                 .map { Pair(ConfigCenter.pack(config, it), it) }
                 .subscribeOn(Schedulers.io())
@@ -88,7 +126,7 @@ private class RemoteRepos : Repository {
 /**
  * Decorator Pattern
  *
- * if there are a lot of the same request at the same time, only the first will be actually executed,
+ * if there are a lot of the same requests at the same time, only the first will be actually executed,
  * and the others will wait for the unique response
  */
 private class CacheRepos(private val repo: Repository) : Repository {
@@ -129,7 +167,7 @@ private class CacheRepos(private val repo: Repository) : Repository {
                 return Single.create({ e: SingleEmitter<DATA> ->
                     repo.getData(config, mobKey, req, net)
                             .subscribe({ data ->
-                                ConfigCenter.logger.i("network request success for $data")
+                                ConfigCenter.logger.i("request success for $data")
                                 ConfigCenter.logger.d("data response on ${Thread.currentThread()}")
                                 e.onSuccess(data)
                                 synchronized(cacheMap) {
