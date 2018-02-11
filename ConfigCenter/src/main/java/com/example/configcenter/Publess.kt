@@ -1,5 +1,9 @@
 package com.example.configcenter
 
+import io.reactivex.Flowable
+import io.reactivex.Single
+import io.reactivex.disposables.Disposable
+
 /**
  * Created by 张宇 on 2018/2/2.
  * E-mail: zhangyu4@yy.com
@@ -17,6 +21,21 @@ object Publess {
 
     @JvmStatic
     fun initPlugin(pluginEntry: Any): Unit = ConfigCenter.initPlugin(pluginEntry)
+
+    @JvmStatic
+    fun <D> pull(config: BaseConfig<D>): Single<D> = ConfigCenter.placeOrder(config)
+
+    @JvmStatic
+    fun <D> update(config: BaseConfig<D>): Disposable {
+        return ConfigCenter.placeOrder(config)
+                .subscribe({
+                    ConfigCenter.logger.i("update $it")
+                }, { error ->
+                    ConfigCenter.logger.e(error)
+                })
+    }
+
+    fun <D> concern(config: BaseConfig<D>): Flowable<D> = ConfigCenter.concernOrder(config)
 
     @JvmStatic
     fun enableLog(logger: ILog) {

@@ -303,7 +303,7 @@ public class ConfigProcessor extends AbstractProcessor {
     }
 
     private TypeSpec generateDataParserClass(String bssName, TypeName dataCls, Iterable<MethodSpec> methods) {
-        return TypeSpec.classBuilder(dataParserName(bssName))
+        return TypeSpec.classBuilder(bssName + "$Parser")
                 .addModifiers(Modifier.PUBLIC)
                 .addMethods(methods)
                 .addSuperinterface(ParameterizedTypeName.get(DataParser_ClsName, dataCls))
@@ -330,7 +330,7 @@ public class ConfigProcessor extends AbstractProcessor {
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(Override.class)
                 .returns(ParameterizedTypeName.get(DataParser_ClsName, dataCls))
-                .addStatement("return new $T()", ClassName.get(packageName, dataParserName(bssName)))
+                .addStatement("return new $T()", ClassName.get(packageName, bssName + "$Parser"))
                 .build();
 
         TypeSpec cls = generateDataConfigClass(bssName, dataCls, Arrays.asList(defaultValue, getBssCode, dataParser));
@@ -371,10 +371,6 @@ public class ConfigProcessor extends AbstractProcessor {
                 .addMethod(loadInto.build())
                 .build();
         writeFile(cls, packageName);
-    }
-
-    private String dataParserName(String bssName) {
-        return bssName + "_Parser";
     }
 
     private void genDataInitClass(ClassName dataClassName, String bssConfigName) {

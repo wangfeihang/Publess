@@ -1,8 +1,8 @@
 package com.example.configcenter
 
+import io.reactivex.Flowable
 import io.reactivex.Single
 import io.reactivex.disposables.Disposable
-import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
@@ -15,24 +15,11 @@ abstract class BaseConfig<D> {
 
     var data: D by ConfigDataDelegate { defaultValue() }
 
-    protected abstract fun defaultValue(): D
+    fun update(): Disposable = Publess.update(this)
 
-    internal val whoCare: MutableList<OnConfigChange<D>> = CopyOnWriteArrayList<OnConfigChange<D>>()
+    fun pull(): Single<D> = Publess.pull(this)
 
-    fun addListener(listener: OnConfigChange<D>) {
-        whoCare.add(listener)
-    }
-
-    fun removeListener(listener: OnConfigChange<D>) {
-        whoCare.remove(listener)
-    }
-
-    fun update(single: OnConfigChange<D>): Disposable = ConfigCenter.placeOrder(this)
-            .subscribe({ data ->
-                single.onChange(data)
-            })
-
-    fun pull(): Single<D> = ConfigCenter.placeOrder(this)
+    fun concern(): Flowable<D> = Publess.concern(this)
 
     var bssVersion: Long = 0
         internal set(value) {
@@ -42,6 +29,8 @@ abstract class BaseConfig<D> {
     abstract val bssCode: String
 
     abstract fun dataParser(): DataParser<D>
+
+    protected abstract fun defaultValue(): D
 }
 
 private class ConfigDataDelegate<D>(private val initializer: () -> D) : ReadOnlyProperty<BaseConfig<D>, D> {
@@ -54,10 +43,6 @@ private class ConfigDataDelegate<D>(private val initializer: () -> D) : ReadOnly
     override fun getValue(thisRef: BaseConfig<D>, property: KProperty<*>): D {
         return this.value ?: initializer()
     }
-}
-
-interface OnConfigChange<in D> {
-    fun onChange(data: D)
 }
 
 interface DataParser<out D> {

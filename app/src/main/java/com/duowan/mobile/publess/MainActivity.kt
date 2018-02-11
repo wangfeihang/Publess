@@ -12,33 +12,36 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         Publess.of(AppData::class.java)
-                .pull()
+                .concern()
                 .subscribe { s ->
-                    Log.i("Publess", "$s")
+                    Log.i("Publess", "concern appdata $s")
                 }
 
         Publess.of(ExtendData::class.java)
-                .pull()
+                .concern()
                 .subscribe { s ->
-                    Log.i("Publess1_extend", "$s")
+                    Log.i("Publess", "concern extenddata $s")
                 }
 
-        Publess.of(ExtendData::class.java)
-                .pull()
-                .subscribe { s ->
-                    Log.i("Publess2_extend", "$s")
-                }
+        Publess.of(AppData::class.java)
+                .update()
+
+        Publess.of(AppData::class.java)
+                .update()
+
+        Publess.of(AppData::class.java)
+                .update()
 
         Publess.of(AppData::class.java)
                 .pull()
                 .subscribe { s ->
-                    Log.i("Publess1", "$s")
+                    Log.i("Publess", "pull $s")
                 }
 
         Publess.of(AppData::class.java)
-                .pull()
+                .concern()
                 .subscribe { s ->
-                    Log.i("Publess2", "$s")
+                    Log.i("Publess", "concern2 appdata $s")
                 }
 
         Publess.of(AppData::class.java)
@@ -47,21 +50,12 @@ class MainActivity : AppCompatActivity() {
                     Log.i("Publess3", "$s")
                 }
 
-        Publess.of(AppData::class.java)
-                .pull()
-                .subscribe { s ->
-                    Log.i("Publess4", "$s")
-                }
+        Publess.of(AppData::class.java).update()
 
-        Publess.of(ExtendData::class.java).pull()
-                .subscribe { s ->
-                    Log.i("Publess3extend", "$s")
-                }
+        Publess.of(ExtendData::class.java).update()
 
-        Publess.of(AppData::class.java)
-                .pull()
-                .subscribe { s ->
-                    Log.i("Publess5", "$s")
-                }
+        Publess.of(ExtendData::class.java).update()
+
+        Publess.of(AppData::class.java).update()
     }
 }
