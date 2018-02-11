@@ -96,7 +96,6 @@ public class ConfigProcessor extends AbstractProcessor {
                 final String bssCode = bssConfigAnno.bssCode();
                 final String bssName = bssConfigAnno.name();
                 final String packageName = getPackageName(cls);
-
                 final ClassName dataClassName = ClassName.get((TypeElement) cls);
                 mapDataToConfig.put(dataClassName, bssName);
 
