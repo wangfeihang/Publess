@@ -280,7 +280,7 @@ public class ConfigProcessor extends AbstractProcessor {
         if (!key.isEmpty()) {
             method.endControlFlow();
             method.beginControlFlow("catch($T e)", JSONException_ClsName);
-            method.addStatement("$T.logger().e(e.toString())", Publess_ClsName);
+            method.addStatement("$T.logger().e(e)", Publess_ClsName);
             method.endControlFlow();
 //            method.beginControlFlow("catch($T e)", NumberFormatException_ClsName);
 //            method.addStatement("$T.logger().e(e.toString())", Publess_ClsName);
