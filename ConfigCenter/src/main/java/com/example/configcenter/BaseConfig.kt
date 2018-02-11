@@ -1,8 +1,10 @@
 package com.example.configcenter
 
 import io.reactivex.Flowable
+import io.reactivex.FlowableEmitter
 import io.reactivex.Single
 import io.reactivex.disposables.Disposable
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
@@ -25,6 +27,8 @@ abstract class BaseConfig<D> {
         internal set(value) {
             field = value
         }
+
+    internal val whoCare by lazy { CopyOnWriteArrayList<FlowableEmitter<D>>() }
 
     abstract val bssCode: String
 

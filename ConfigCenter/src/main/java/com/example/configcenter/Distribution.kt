@@ -4,7 +4,7 @@ import io.reactivex.BackpressureStrategy
 import io.reactivex.Flowable
 import io.reactivex.FlowableEmitter
 import io.reactivex.Single
-import java.util.concurrent.ConcurrentHashMap
+import io.reactivex.android.schedulers.AndroidSchedulers
 
 /**
  * Created by 张宇 on 2018/2/3.
@@ -44,7 +44,6 @@ internal interface Distribution {
 
 internal class Dispatcher : Distribution {
 
-    private val concernMap: MutableMap<String, MutableList<out FlowableEmitter<*>>> = ConcurrentHashMap()
     private val net by lazy { ConfigCenter.network }
     private val repo = ConfigRepository()
 
@@ -53,8 +52,7 @@ internal class Dispatcher : Distribution {
         ConfigCenter.logger.d("delivery on ${Thread.currentThread()}")
         order.bssVersion = mobValue.bssVersion
         order.data = data
-        (concernMap[order.bssCode] as? MutableList<FlowableEmitter<D>>)
-                ?.forEach { emitter -> emitter.onNext(data) }
+        order.whoCare.forEach { emitter -> emitter.onNext(data) }
     }
 
     override fun <D> pack(order: BaseConfig<D>, payload: MobConfigValue): D {
@@ -63,21 +61,18 @@ internal class Dispatcher : Distribution {
     }
 
     override fun <D> concernOrder(order: BaseConfig<D>): Flowable<D> {
-
-        @Suppress("UNCHECKED_CAST")
-        fun whoCare(bssCode: String): MutableList<FlowableEmitter<D>> =
-                concernMap[bssCode] as? MutableList<FlowableEmitter<D>>
-                        ?: mutableListOf<FlowableEmitter<D>>().also { concernMap[bssCode] = it }
-
         return Flowable.create({ e: FlowableEmitter<D> ->
             ConfigCenter.logger.i("start to concern ${order.bssCode}")
-            whoCare(order.bssCode).add(e)
+            order.whoCare.add(e)
+
+            val disposable = order.update()
 
             e.setCancellable {
+                disposable.dispose()
                 ConfigCenter.logger.i("dispose concern ${order.bssCode}")
-                whoCare(order.bssCode).remove(e)
+                order.whoCare.remove(e)
             }
-        }, BackpressureStrategy.BUFFER)
+        }, BackpressureStrategy.BUFFER).subscribeOn(AndroidSchedulers.mainThread())
     }
 
     override fun <D> placeOrder(order: BaseConfig<D>): Single<D> = placeOrder(order, net)

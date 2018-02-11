@@ -15,7 +15,9 @@ class FadeNetwork : Network<CustomRequest> {
             "mobby-base" -> Single.just(MobConfigValue("mobby-base", 0, mapOf(
                     "a" to "i am a",
                     "b" to "1",
-                    "s" to "12312"
+                    "s" to "12312",
+                    "efg" to "i am efg",
+                    "list" to """["a","b","c","d"]"""
             )))
             else -> Single.just(MobConfigValue("mobby-extend", 0, mapOf(
                     "asd" to "i am asd",
