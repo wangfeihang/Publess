@@ -14,17 +14,23 @@ internal class ConfigLogger : Logger {
 
     override fun i(info: String) = logger.i(info)
 
-    override fun e(error: String) = logger.e(error)
+    override fun e(error: Throwable) = logger.e(error)
+
+    override fun d(info: String) = logger.d(info)
 }
 
 object Quiet : ILog {
     override fun i(info: String) {}
 
-    override fun e(error: String) {}
+    override fun d(info: String) {}
+
+    override fun e(error: Throwable) {}
 }
 
 interface ILog {
     fun i(info: String)
 
-    fun e(error: String)
+    fun d(info: String)
+
+    fun e(error: Throwable)
 }

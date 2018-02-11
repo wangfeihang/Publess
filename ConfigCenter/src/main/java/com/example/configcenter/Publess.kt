@@ -24,9 +24,6 @@ object Publess {
     }
 
     @JvmStatic
-    fun logger(): ILog = ConfigCenter.logger
-
-    @JvmStatic
     fun performNetwork(network: Network<out CacheKey>) {
         ConfigCenter.network = network
     }
@@ -36,6 +33,5 @@ internal object ConfigCenter : //快递中心
         PluginSupport by ConfigPluginSupport(), //跨省支持
         PickupCenter by InBox(), //取件箱
         Distribution by Dispatcher(), //分发派件
-        Repository by ConfigRepository(), //仓库
         CustomNet by ConfigNet(), //个性化物流
         Logger by ConfigLogger() //记账

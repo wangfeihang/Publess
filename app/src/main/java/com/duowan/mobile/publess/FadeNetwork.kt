@@ -11,11 +11,17 @@ import io.reactivex.Single
  */
 class FadeNetwork : Network<CustomRequest> {
     override fun performNetwork(req: CustomRequest): Single<MobConfigValue> {
-        return Single.just(MobConfigValue("mobby-base", 0, mapOf(
-                "a" to "i am a",
-                "b" to "1",
-                "s" to "12312"
-        )))
+        return when (req.bssCode) {
+            "mobby-base" -> Single.just(MobConfigValue("mobby-base", 0, mapOf(
+                    "a" to "i am a",
+                    "b" to "1",
+                    "s" to "12312"
+            )))
+            else -> Single.just(MobConfigValue("mobby-extend", 0, mapOf(
+                    "asd" to "i am asd",
+                    "user" to """{"uid":"123456","name":"i am a name"}"""
+            )))
+        }
     }
 
     override fun extractKey(key: MobConfigKey): CustomRequest {
@@ -23,7 +29,7 @@ class FadeNetwork : Network<CustomRequest> {
     }
 }
 
-data class CustomRequest(private val bssCode: String, private val uid: Long) : CacheKey {
+data class CustomRequest(val bssCode: String, private val uid: Long) : CacheKey {
     override fun equals(other: Any?): Boolean {
         if (other is CustomRequest) {
             return bssCode == other.bssCode && uid == other.uid
@@ -35,11 +41,15 @@ data class CustomRequest(private val bssCode: String, private val uid: Long) : C
 }
 
 class PublessLog : ILog {
-    override fun i(info: String) {
+    override fun d(info: String) {
         Log.i(TAG, info)
     }
 
-    override fun e(error: String) {
-        Log.e(TAG, error)
+    override fun e(error: Throwable) {
+        Log.e(TAG, "", error)
+    }
+
+    override fun i(info: String) {
+        Log.i(TAG, info)
     }
 }

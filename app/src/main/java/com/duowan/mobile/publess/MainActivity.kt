@@ -12,37 +12,54 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         Publess.of(AppData::class.java)
-                .order()
+                .pull()
                 .subscribe { s ->
                     Log.i("Publess", "$s")
                 }
 
+        Publess.of(ExtendData::class.java)
+                .pull()
+                .subscribe { s ->
+                    Log.i("Publess1_extend", "$s")
+                }
+
+        Publess.of(ExtendData::class.java)
+                .pull()
+                .subscribe { s ->
+                    Log.i("Publess2_extend", "$s")
+                }
+
         Publess.of(AppData::class.java)
-                .order()
+                .pull()
                 .subscribe { s ->
                     Log.i("Publess1", "$s")
                 }
 
         Publess.of(AppData::class.java)
-                .order()
+                .pull()
                 .subscribe { s ->
                     Log.i("Publess2", "$s")
                 }
 
         Publess.of(AppData::class.java)
-                .order()
+                .pull()
                 .subscribe { s ->
                     Log.i("Publess3", "$s")
                 }
 
         Publess.of(AppData::class.java)
-                .order()
+                .pull()
                 .subscribe { s ->
                     Log.i("Publess4", "$s")
                 }
 
+        Publess.of(ExtendData::class.java).pull()
+                .subscribe { s ->
+                    Log.i("Publess3extend", "$s")
+                }
+
         Publess.of(AppData::class.java)
-                .order()
+                .pull()
                 .subscribe { s ->
                     Log.i("Publess5", "$s")
                 }

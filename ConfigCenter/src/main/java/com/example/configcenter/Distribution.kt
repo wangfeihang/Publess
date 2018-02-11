@@ -1,7 +1,6 @@
 package com.example.configcenter
 
 import io.reactivex.Single
-import io.reactivex.android.schedulers.AndroidSchedulers
 
 /**
  * Created by 张宇 on 2018/2/3.
@@ -18,7 +17,7 @@ internal interface Distribution {
      * 派件
      * 把需要的数据分发到目的地
      */
-    fun <D> delivery(order: BaseConfig<D>, payload: D)
+    fun <D> delivery(order: BaseConfig<D>, data: D, mobValue: MobConfigValue)
 
     /**
      * 打包
@@ -33,25 +32,29 @@ internal interface Distribution {
     fun <D> placeOrder(order: BaseConfig<D>): Single<D>
 }
 
-
 internal class Dispatcher : Distribution {
 
-    override fun <D> delivery(order: BaseConfig<D>, payload: D) {
-        order.data = payload
-        order.whoCare.forEach { it.onChange(payload) }
+    private val net by lazy { ConfigCenter.network }
+    private val repo = ConfigRepository()
+
+    override fun <D> delivery(order: BaseConfig<D>, data: D, mobValue: MobConfigValue) {
+        ConfigCenter.logger.d("delivery on ${Thread.currentThread()}")
+        order.bssVersion = mobValue.bssVersion
+        order.data = data
+        order.whoCare.forEach { it.onChange(data) }
     }
 
     override fun <D> pack(order: BaseConfig<D>, payload: MobConfigValue): D {
+        ConfigCenter.logger.d("start to parse MobConfigValue to data on ${Thread.currentThread()}")
         return order.dataParser().parse(payload.config)
     }
 
-    override fun <D> placeOrder(order: BaseConfig<D>): Single<D> {
+    override fun <D> placeOrder(order: BaseConfig<D>): Single<D> = placeOrder(order, net)
 
-        val key = MobConfigKey(order.bssCode, order.bssVersion)
-
-        return ConfigCenter.getData(key)
-                .map { pack(order, it) }
-                .observeOn(AndroidSchedulers.mainThread())
-                .doOnSuccess { delivery(order, it) }
+    private fun <D, T : CacheKey> placeOrder(order: BaseConfig<D>, net: Network<T>): Single<D> {
+        ConfigCenter.logger.d("placeOrder for ${order.bssCode}")
+        val mobKey = MobConfigKey(order.bssCode, order.bssVersion)
+        val req: T = net.extractKey(mobKey)
+        return repo.getData(order, mobKey, req, net::performNetwork)
     }
 }

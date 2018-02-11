@@ -3,14 +3,9 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/ConfigCenter/ConfigCenter.iml" filepath="$PROJECT_DIR$/ConfigCenter/ConfigCenter.iml" />
-      <module fileurl="file://$PROJECT_DIR$/ConfigCenter/ConfigCenter.iml" filepath="$PROJECT_DIR$/ConfigCenter/ConfigCenter.iml" />
-      <module fileurl="file://$PROJECT_DIR$/ConfigCenterAnnotation/ConfigCenterAnnotation.iml" filepath="$PROJECT_DIR$/ConfigCenterAnnotation/ConfigCenterAnnotation.iml" />
       <module fileurl="file://$PROJECT_DIR$/ConfigCenterAnnotation/ConfigCenterAnnotation.iml" filepath="$PROJECT_DIR$/ConfigCenterAnnotation/ConfigCenterAnnotation.iml" />
       <module fileurl="file://$PROJECT_DIR$/ConfigCenterCompiler/ConfigCenterCompiler.iml" filepath="$PROJECT_DIR$/ConfigCenterCompiler/ConfigCenterCompiler.iml" />
-      <module fileurl="file://$PROJECT_DIR$/ConfigCenterCompiler/ConfigCenterCompiler.iml" filepath="$PROJECT_DIR$/ConfigCenterCompiler/ConfigCenterCompiler.iml" />
       <module fileurl="file://$PROJECT_DIR$/Publess.iml" filepath="$PROJECT_DIR$/Publess.iml" />
-      <module fileurl="file://$PROJECT_DIR$/Publess.iml" filepath="$PROJECT_DIR$/Publess.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
   </component>

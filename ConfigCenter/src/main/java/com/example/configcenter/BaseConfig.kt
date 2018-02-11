@@ -32,7 +32,7 @@ abstract class BaseConfig<D> {
                 single.onChange(data)
             })
 
-    fun order(): Single<D> = ConfigCenter.placeOrder(this)
+    fun pull(): Single<D> = ConfigCenter.placeOrder(this)
 
     var bssVersion: Long = 0
         internal set(value) {

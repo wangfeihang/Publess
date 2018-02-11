@@ -3,6 +3,7 @@ package com.example.configcenter
 import com.google.gson.JsonParseException
 import io.reactivex.Single
 import io.reactivex.SingleEmitter
+import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 
 /**
@@ -10,68 +11,106 @@ import io.reactivex.schedulers.Schedulers
  * E-mail: zhangyu4@yy.com
  * YY: 909017428
  */
-
 /**
  * # 数据仓库
  */
 internal interface Repository {
-    fun getData(req: MobConfigKey): Single<MobConfigValue>
+    /**
+     * @param config 要获取的配置
+     * @param mobKey 配置产生的请求
+     * @param req 自定义请求
+     * @param net 自定义网络交互的实现
+     */
+    fun <DATA, KEY : CacheKey> getData(
+            config: BaseConfig<DATA>,
+            mobKey: MobConfigKey,
+            req: KEY,
+            net: Net<KEY>): Single<DATA>
 }
 
-/**
- * # 支持缓存的数据仓库
- */
-internal interface CachingRepository : Repository {
-    fun getCacheKey(req: MobConfigKey): CacheKey
-}
+typealias Net<T> = (T) -> Single<MobConfigValue>
 
 internal class ConfigRepository : Repository {
-    private val remote by lazy { CacheRemoteRepos(ConfigCenter.network) }
-    private val local = LocalRepository()
 
-    override fun getData(req: MobConfigKey): Single<MobConfigValue> {
-        return remote.getData(req)
+    private val remote = CacheRepos(RemoteRepos())
+    private val local = LocalRepo()
+
+    override fun <DATA, KEY : CacheKey> getData(
+            config: BaseConfig<DATA>,
+            mobKey: MobConfigKey,
+            req: KEY,
+            net: Net<KEY>): Single<DATA> {
+
+        return remote.getData(config, mobKey, req, net)
                 .onErrorResumeNext({ throwable ->
                     // 如果是数据解析时产生的错误，希望抛出去在开发阶段解决
                     if (throwable is NumberFormatException || throwable is JsonParseException) {
                         throw throwable
                     }
-                    local.getData(req)
+                    local.getData(config, mobKey, req, net)
                 })
     }
 }
 
 /**
- * 从本地获取数据，不支持[CacheKey]，
- * 也就是只要[MobConfigKey]相同就当作命中，不会判断其他信息。
- * 只作为一种后补手段，还是以网络获取为主
+ * read from local
  */
-private class LocalRepository : Repository {
-    override fun getData(req: MobConfigKey): Single<MobConfigValue> {
+private class LocalRepo : Repository {
+    override fun <DATA, KEY : CacheKey> getData(
+            config: BaseConfig<DATA>,
+            mobKey: MobConfigKey,
+            req: KEY,
+            net: Net<KEY>): Single<DATA> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }
 
 /**
- * 从网络获取数据
- *
- * 对于同一种请求，只有第一个请求会去执行，后面的请求会直接等待第一个请求的结果。
- * 同一种请求的定义由[CachingRepository.getCacheKey]决定
- * todo 创建Single换优雅一点的写法
+ * read from network
  */
-private class CacheRemoteRepos<T : CacheKey>(
-        val net: Network<T>) : Repository {
+private class RemoteRepos : Repository {
+    override fun <DATA, KEY : CacheKey> getData(
+            config: BaseConfig<DATA>,
+            mobKey: MobConfigKey,
+            req: KEY,
+            net: (KEY) -> Single<MobConfigValue>): Single<DATA> {
+        return net(req)
+                .map { Pair(ConfigCenter.pack(config, it), it) }
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnSuccess { (data, value) ->
+                    ConfigCenter.delivery(config, data, value)
+                }
+                .map { (data, _) -> data }
+    }
+}
 
-    private val cacheMap = mutableMapOf<CacheKey, MutableList<SingleEmitter<MobConfigValue>>>()
+/**
+ * Decorator Pattern
+ *
+ * if there are a lot of the same request at the same time, only the first will be actually executed,
+ * and the others will wait for the unique response
+ */
+private class CacheRepos(private val repo: Repository) : Repository {
 
-    override fun getData(req: MobConfigKey): Single<MobConfigValue> {
+    private val cacheMap = mutableMapOf<CacheKey, MutableList<out SingleEmitter<*>>>()
 
-        val mark = net.extractKey(req)
+
+    override fun <DATA, KEY : CacheKey> getData(
+            config: BaseConfig<DATA>,
+            mobKey: MobConfigKey,
+            req: KEY,
+            net: (KEY) -> Single<MobConfigValue>): Single<DATA> {
+
+        @Suppress("UNCHECKED_CAST")
+        fun getEmitters(key: CacheKey): MutableList<SingleEmitter<DATA>>? {
+            return cacheMap[key] as? MutableList<SingleEmitter<DATA>>
+        }
 
         /*
-        如果已经有相同的请求 则直接排队等候请求的结果
-         */
-        cacheMap[mark]?.let {
+       如果已经有相同的请求 则直接排队等候请求的结果
+        */
+        getEmitters(req)?.let {
             return waitingForPreviousResult(it)
         }
 
@@ -79,49 +118,44 @@ private class CacheRemoteRepos<T : CacheKey>(
             /*
             双重检查稳一波
              */
-            cacheMap[mark]?.let {
+            getEmitters(req)?.let {
                 return waitingForPreviousResult(it)
 
             } ?: run {
                 /*
                 从网络取 取到之后通知那些在排队的
                  */
-                cacheMap[mark] = mutableListOf()
-                return requestAndNotify(mark)
+                cacheMap[req] = mutableListOf()
+                return Single.create({ e: SingleEmitter<DATA> ->
+                    repo.getData(config, mobKey, req, net)
+                            .subscribe({ data ->
+                                ConfigCenter.logger.i("network request success for $data")
+                                ConfigCenter.logger.d("data response on ${Thread.currentThread()}")
+                                e.onSuccess(data)
+                                synchronized(cacheMap) {
+                                    getEmitters(req)?.forEach { e -> e.onSuccess(data) }
+                                    cacheMap.remove(req)
+                                }
+
+                            }, { error ->
+                                ConfigCenter.logger.e(error)
+                                e.onError(error)
+                                synchronized(cacheMap) {
+                                    getEmitters(req)?.forEach { e -> e.onError(error) }
+                                    cacheMap.remove(req)
+                                }
+                            })
+                })
             }
         } //synchronized
     }
 
-    fun waitingForPreviousResult(list: MutableList<SingleEmitter<MobConfigValue>>)
-            : Single<MobConfigValue> {
-        return Single.create({ emitter: SingleEmitter<MobConfigValue> ->
+    fun <DATA> waitingForPreviousResult(list: MutableList<SingleEmitter<DATA>>)
+            : Single<DATA> {
+        return Single.create({ emitter: SingleEmitter<DATA> ->
             synchronized(cacheMap) {
                 list.add(emitter)
             }
-        })
-    }
-
-    fun requestAndNotify(req: T): Single<MobConfigValue> {
-        return Single.create({ e: SingleEmitter<MobConfigValue> ->
-            net.performNetwork(req)
-                    .subscribeOn(Schedulers.io())
-                    .subscribe({
-                        ConfigCenter.logger.i("network request success for $req with ${it.bssCode}")
-                        if (!e.isDisposed) e.onSuccess(it)
-
-                        synchronized(cacheMap) {
-                            cacheMap[req]?.forEach { e -> e.onSuccess(it) }
-                            cacheMap.remove(req)
-                        }
-                    }, {
-                        ConfigCenter.logger.e("network request fail with $it")
-                        if (!e.isDisposed) e.onError(it)
-
-                        synchronized(cacheMap) {
-                            cacheMap[req]?.forEach { e -> e.onError(it) }
-                            cacheMap.remove(req)
-                        }
-                    })
         })
     }
 }
