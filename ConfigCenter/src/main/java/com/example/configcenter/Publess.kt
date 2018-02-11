@@ -43,6 +43,9 @@ object Publess {
     }
 
     @JvmStatic
+    fun logger() = ConfigCenter.logger
+
+    @JvmStatic
     fun performNetwork(network: Network<out CacheKey>) {
         ConfigCenter.network = network
     }
