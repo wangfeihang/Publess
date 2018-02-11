@@ -29,6 +29,7 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 
@@ -94,7 +95,7 @@ public class ConfigProcessor extends AbstractProcessor {
                 final BssConfig bssConfigAnno = cls.getAnnotation(BssConfig.class);
                 final String bssCode = bssConfigAnno.bssCode();
                 final String bssName = bssConfigAnno.name();
-                final String packageName = cls.getEnclosingElement().toString();
+                final String packageName = getPackageName(cls);
 
                 final ClassName dataClassName = ClassName.get((TypeElement) cls);
                 mapDataToConfig.put(dataClassName, bssName);
@@ -405,6 +406,15 @@ public class ConfigProcessor extends AbstractProcessor {
         if (str == null) return "";
         if (str.length() <= 1) return str.toUpperCase();
         return str.substring(0, 1).toUpperCase() + str.substring(1);
+    }
+
+    private String getPackageName(Element element) {
+        log.info("Data Class：" + element);
+        Element e = element;
+        while (!(e instanceof PackageElement)) {
+            e = e.getEnclosingElement();
+        }
+        return e.toString();
     }
 
     /**
