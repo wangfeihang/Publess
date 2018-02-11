@@ -33,7 +33,7 @@ typealias Net<T> = (T) -> Single<MobConfigValue>
 
 internal class ConfigRepository : Repository {
 
-    private val remote = CacheRepos(MemoryRepo(RemoteRepos()))
+    private val remote = MemoryRepo(CacheRepos(RemoteRepos()))
     private val local = LocalRepo()
 
     override fun <DATA, KEY : CacheKey> getData(
@@ -133,7 +133,6 @@ private class CacheRepos(private val repo: Repository) : Repository {
 
     private val cacheMap = mutableMapOf<CacheKey, MutableList<out SingleEmitter<*>>>()
 
-
     override fun <DATA, KEY : CacheKey> getData(
             config: BaseConfig<DATA>,
             mobKey: MobConfigKey,
@@ -159,38 +158,39 @@ private class CacheRepos(private val repo: Repository) : Repository {
             getEmitters(req)?.let {
                 return waitingForPreviousResult(it)
 
-            } ?: run {
-                /*
-                从网络取 取到之后通知那些在排队的
-                 */
-                cacheMap[req] = mutableListOf()
-                return Single.create({ e: SingleEmitter<DATA> ->
-                    repo.getData(config, mobKey, req, net)
-                            .subscribe({ data ->
-                                ConfigCenter.logger.i("request success for $data")
-                                ConfigCenter.logger.d("data response on ${Thread.currentThread()}")
-                                e.onSuccess(data)
-                                synchronized(cacheMap) {
-                                    getEmitters(req)?.forEach { e -> e.onSuccess(data) }
-                                    cacheMap.remove(req)
-                                }
-
-                            }, { error ->
-                                ConfigCenter.logger.e(error)
-                                e.onError(error)
-                                synchronized(cacheMap) {
-                                    getEmitters(req)?.forEach { e -> e.onError(error) }
-                                    cacheMap.remove(req)
-                                }
-                            })
-                })
             }
+            /*
+            从网络取 取到之后通知那些在排队的
+             */
+            cacheMap[req] = mutableListOf()
+            return Single.create({ e: SingleEmitter<DATA> ->
+                repo.getData(config, mobKey, req, net)
+                        .subscribe({ data ->
+                            ConfigCenter.logger.i("request success for $data")
+                            ConfigCenter.logger.d("data response on ${Thread.currentThread()}")
+                            e.onSuccess(data)
+                            synchronized(cacheMap) {
+                                getEmitters(req)?.forEach { e -> e.onSuccess(data) }
+                                cacheMap.remove(req)
+                            }
+
+                        }, { error ->
+                            ConfigCenter.logger.e(error)
+                            e.onError(error)
+                            synchronized(cacheMap) {
+                                getEmitters(req)?.forEach { e -> e.onError(error) }
+                                cacheMap.remove(req)
+                            }
+                        })
+            })
+
         } //synchronized
     }
 
     fun <DATA> waitingForPreviousResult(list: MutableList<SingleEmitter<DATA>>)
             : Single<DATA> {
         return Single.create({ emitter: SingleEmitter<DATA> ->
+            ConfigCenter.logger.i("waiting for previous result, in position ${list.size}")
             synchronized(cacheMap) {
                 list.add(emitter)
             }
