@@ -112,7 +112,7 @@ public class AppBasicsData {
 
 - kotlin支持
 
-在kotlin中使用时，成员变量需要可变。如果是使用 `data class` ，由于要提供无参构造函数，所以每个变量都需要有默认值。
+在kotlin中使用时，成员变量需要是var。如果是使用 `data class` ，由于要提供无参构造函数，所以每个变量都需要有默认值。
 ```kotlin
 @BssConfig(name = "KotlinConfig", bssCode = "mobby-test")
 data class KotlinData(
@@ -172,6 +172,7 @@ Publess.get(PublessAppBasicsConfig.class).pull().subscribe(new Consumer<AppBasic
 });
 ```
 注意：在kotlin里面是没办法直接把生成的类写在代码里面的，所以只推荐用Publess.of这种用法。
+
 **顺便说一句：YYStore这套框架的Action是用apt生成，在kotlin里面根本没法用，这种设计凉透了**
 
 - 关联一个配置，监听配置每一次变化
@@ -186,7 +187,7 @@ Publess.of(AppBasicsData.class).concern().subscribe(new Consumer<AppBasicsData>(
     }
 });
 ```
-`concern`方法建议与`RxLifeCycle`合用，否则一定要记得`dispose()`防止内存泄漏
+`concern`方法建议与`RxLifecycle`合用，否则一定要记得`dispose()`防止内存泄漏
 
 - 直接使用配置数据（不推荐）
 
