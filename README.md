@@ -1,6 +1,6 @@
 # Publess
 -------------
-客户端统一配置中心（测试环境：http://publesstest.yy.com/）的Android客户端支持
+客户端统一配置中心（测试环境：http://publesstest.yy.com/ ）的Android客户端支持
 
 * 减少数据解析的模版代码，直接面向需要使用的数据对象
 * 数据具有实时性和一致性，不用关心uid改变等原因导致当前数据过期
@@ -22,6 +22,7 @@ compile "com.yy.mobile:publess-annotation:${basesdk_version}"
 
 ![配置中心首页][1]
 配置了如下属性：
+
 | 键 | 默认值 |
 | :----: | :----: |
 | test | 我就一句话 |
@@ -64,6 +65,7 @@ public class AppBasicsData {
 | :----: |:----: |
 | playWithMc | ["青铜","白银","黄金","铂金","钻石"] |
 | game_pk_config | {"android":{"webviewType":0,"urlLoadTimeout":30,"gameLoadTimeout":30},"ios":{"webpk_game_resource":"http://empfs.bs2dl.yy.com","record_fps":15,"suspend_fps":1}} |
+
 ```java
     @BssValue(property = "playWithMc")
     public List<String> playWithMc = Collections.emptyList();
