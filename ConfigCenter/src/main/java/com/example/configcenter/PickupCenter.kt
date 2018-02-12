@@ -13,21 +13,16 @@ internal interface PickupCenter {
 
     fun <D> get(configCls: Class<out BaseConfig<D>>): BaseConfig<D>
 
-    fun <D> get(bssCode: String): BaseConfig<D>
-
     fun <D> of(dataCls: Class<out D>): BaseConfig<D>
 
     fun getDataConfigMap(): MutableMap<Class<*>, BaseConfig<*>>
 
     fun getClassConfigMap(): MutableMap<Class<out BaseConfig<*>>, BaseConfig<*>>
-
-    fun getBssConfigMap(): MutableMap<String, BaseConfig<*>>
 }
 
 internal class InBox : PickupCenter {
 
     private val configMap = mutableMapOf<Class<out BaseConfig<*>>, BaseConfig<*>>()
-    private val bssCodeMap = mutableMapOf<String, BaseConfig<*>>()
     private val dataMap = mutableMapOf<Class<*>, BaseConfig<*>>()
 
     @Suppress("UNCHECKED_CAST")
@@ -36,11 +31,6 @@ internal class InBox : PickupCenter {
             configMap[configCls] as? BaseConfig<D>
                     ?: throw IllegalArgumentException("cannot find the config of " +
                             "the data $configCls,is it annotated by @BssConfig?")
-
-    @Suppress("UNCHECKED_CAST")
-    @Throws(IllegalArgumentException::class)
-    override fun <D> get(bssCode: String): BaseConfig<D> = bssCodeMap[bssCode] as? BaseConfig<D>
-            ?: throw IllegalArgumentException("the bssCode [$bssCode] is not exist")
 
     @Suppress("UNCHECKED_CAST")
     override fun <D> of(dataCls: Class<out D>): BaseConfig<D> = (dataMap[dataCls]
@@ -68,6 +58,4 @@ internal class InBox : PickupCenter {
     override fun getDataConfigMap(): MutableMap<Class<*>, BaseConfig<*>> = dataMap
 
     override fun getClassConfigMap(): MutableMap<Class<out BaseConfig<*>>, BaseConfig<*>> = configMap
-
-    override fun getBssConfigMap(): MutableMap<String, BaseConfig<*>> = bssCodeMap
 }

@@ -30,7 +30,6 @@ internal class ConfigPluginSupport : PluginSupport {
         ConfigCenter.getDataConfigMap().putAll(map)
         for (config in map.values) {
             ConfigCenter.getClassConfigMap()[config.javaClass] = config
-            ConfigCenter.getBssConfigMap()[config.bssCode] = config
         }
     }
 }
