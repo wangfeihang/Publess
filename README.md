@@ -18,7 +18,7 @@ compile "com.yy.mobile:publess-annotation:${basesdk_version}"
 
 - 简单的属性配置
 
-如果要加一项业务配置，比如在 **手Y基础配置** （BssCode： **mobby-base** ）
+如果要加一项业务配置，比如在 **手Y基础配置** （BssCode： **mobyy-base** ）
 
 ![配置中心首页][1]
 配置了如下属性：
@@ -30,7 +30,7 @@ compile "com.yy.mobile:publess-annotation:${basesdk_version}"
 那么在我们的代码里面，我们需要定义一个自己业务的JavaBean类，作为从配置中心取得的数据。然后在此类上面注解上 **@BssConfig(name="配置的类名",bssCode="配置中心定义的业务号")** 。注意配置的类名在当前包下不能有已存在的同名类，否则生成类会同名冲突。bssCode必须要跟网页版配置中心上定义的相同。然后定义一个业务所需要的属性，并加上注解 **@BssValue(property = "配置中心定义的键")** ，Publess就会在该属性上附上对应的值：
 
 ```java
-@BssConfig(name = "AppBasicsConfig", bssCode = "mobby-base")
+@BssConfig(name = "AppBasicsConfig", bssCode = "mobyy-base")
 public class AppBasicsData {
 
     @BssValue(property = "test")
@@ -49,7 +49,7 @@ public class AppBasicsData {
 那么我们的代码的注解就会多一个**key**属性：
 
 ```java
-@BssConfig(name = "AppBasicsConfig", bssCode = "mobby-base")
+@BssConfig(name = "AppBasicsConfig", bssCode = "mobyy-base")
 public class AppBasicsData {
 
     @BssValue(property = "PaoSaoUseRN", key = "switch")
@@ -196,5 +196,22 @@ AppBasicsData data = Publess.of(AppBasicsData.class).getData();
 ```
 这个仅仅是用来兼容祖传代码的用法。无法保证拿到的数据是否是最新的、有效的。
 
+-------------
+#插件化
 
-  [1]: https://raw.githubusercontent.com/YvesCheung/Publess/master/publess_index.jpg
+如果条件允许的话，可以在插件入口加上 **@BssInit** 和 **Publess.initPlugin(this);** 
+```java
+@BssInit
+public enum PluginEntryPoint implements IPluginEntryPoint, IHostApiFactory {
+    //...
+    
+    @Override
+    public void initialize(IPluginManager manager) {
+        //...
+        Publess.initPlugin(this);
+        //...
+    }
+}
+```
+
+后续的优化会通过这个入口初始化整个插件的配置，略微提升使用时的性能。不加也不影响使用。
