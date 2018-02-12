@@ -33,8 +33,8 @@ typealias Net<T> = (T) -> Single<MobConfigValue>
 
 internal class ConfigRepository : Repository {
 
-    private val remote = MemoryRepo(DataCacheRepo(CacheRemoteRepos(RemoteRepos())))
-    private val local = LocalRepo()
+    private val remote: Repository = MemoryRepo(BlockSameConfigRepo(BlockSameRequestRepo(RemoteRepos())))
+    private val local: Repository = LocalRepo()
 
     override fun <DATA, KEY : CacheKey> getData(
             config: BaseConfig<DATA>,
@@ -54,14 +54,15 @@ internal class ConfigRepository : Repository {
 }
 
 /**
- * Decorator Pattern
+ * 一定时间内完全相同的请求直接取内存数据
  */
 private class MemoryRepo(private val repo: Repository) : Repository {
 
-    companion object {
-        const val cacheTime = 2 * 60 * 1000L
-    }
+    val cacheTime = 30 * 60 * 1000L
 
+    /**
+     * 读写都控制在主线程
+     */
     private val lastTimeData = mutableMapOf<BaseConfig<*>, Pair<CacheKey, Long>>()
 
     override fun <DATA, KEY : CacheKey> getData(
@@ -70,20 +71,27 @@ private class MemoryRepo(private val repo: Repository) : Repository {
             req: KEY,
             net: Net<KEY>): Single<DATA> {
 
-        val pair = lastTimeData[config]
-        if (pair != null) {
-            val (key, time) = pair
-            if (key == req && System.currentTimeMillis() - time < cacheTime) {
-                ConfigCenter.logger.i("内存命中 直接返回$config 的data")
-                return Single.just(config.data).observeOn(AndroidSchedulers.mainThread())
-            }
-        }
-
-        return repo.getData(config, mobKey, req, net)
-                .doOnSuccess {
-                    lastTimeData[config] = Pair(req, System.currentTimeMillis())
+        return Single.create({ emitter: SingleEmitter<DATA> ->
+            val pair = lastTimeData[config]
+            if (pair != null) {
+                val (key, time) = pair
+                if (key == req && System.currentTimeMillis() - time < cacheTime) {
+                    ConfigCenter.logger.i("内存命中 直接返回$config 的data on ${Thread.currentThread()}")
+                    emitter.onSuccess(config.data)
+                    return@create
                 }
-                .observeOn(AndroidSchedulers.mainThread())
+            }
+            emitter.onError(IllegalStateException("no memory cache"))
+        })
+                .subscribeOn(AndroidSchedulers.mainThread())
+                .onErrorResumeNext {
+                    repo.getData(config, mobKey, req, net)
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .doOnSuccess {
+                                ConfigCenter.logger.d("更新内存$config （${config.bssCode}）的数据")
+                                lastTimeData[config] = Pair(req, System.currentTimeMillis())
+                            }
+                }
     }
 }
 
@@ -96,160 +104,73 @@ private class LocalRepo : Repository {
             mobKey: MobConfigKey,
             req: KEY,
             net: Net<KEY>): Single<DATA> {
-        TODO("not implemented") //有空再写
-    }
-}
-
-internal interface Repo {
-    /**
-     * @param config 要获取的配置
-     * @param mobKey 配置产生的请求
-     * @param req 自定义请求
-     * @param net 自定义网络交互的实现
-     */
-    fun <DATA, KEY : CacheKey> getData(
-            config: BaseConfig<DATA>,
-            mobKey: MobConfigKey,
-            req: KEY,
-            net: Net<KEY>): Single<MobConfigValue>
-}
-
-/**
- * 从网络读取，相同请求在2分钟内会读缓存
- */
-private class RemoteRepos : Repo {
-    val cache = LruCache<CacheKey, Pair<MobConfigValue, Long>>(6)
-    val limit = 6 * 60 * 1000L
-
-    override fun <DATA, KEY : CacheKey> getData(
-            config: BaseConfig<DATA>,
-            mobKey: MobConfigKey,
-            req: KEY,
-            net: (KEY) -> Single<MobConfigValue>): Single<MobConfigValue> {
-
-        var pair: Pair<MobConfigValue, Long>? = null
-        synchronized(cache) {
-            pair = cache[req]
-        }
-        pair?.let {
-            val (value, time) = it
-            if (System.currentTimeMillis() - time < limit) {
-                ConfigCenter.logger.i("缓存有该请求的数据 直接返回 ${config.bssCode}")
-                return Single.just(value)
-            }
-        }
-        ConfigCenter.logger.i("开始网络请求 ${config.bssCode}")
-        return net(req)
-                .doOnSuccess {
-                    synchronized(cache) {
-                        cache.put(req, Pair(it, System.currentTimeMillis()))
-                    }
-                }
-                .subscribeOn(Schedulers.io())
+        return Single.just(config.data) //有空再写
     }
 }
 
 /**
  * 让同个Config同个Request 不会多次请求
  */
-private class DataCacheRepo(private val repo: Repository) : Repository {
+private class BlockSameConfigRepo(private val repo: Repository) : Repository {
 
-    private data class UniqueKey(private val config: BaseConfig<*>, private val req: CacheKey) {
-        override fun equals(other: Any?): Boolean {
-            if (other is UniqueKey) {
-                return config == other.config && req == other.req
-            }
-            return false
-        }
+    private data class UniqueKey(private val config: BaseConfig<*>, private val req: CacheKey)
 
-        override fun hashCode(): Int {
-            return config.hashCode() * 31 + req.hashCode() * 31
-        }
-    }
-
+    /**
+     * 所有对该map对操作都控制在主线程，不需要上锁
+     */
     private val cacheMap = mutableMapOf<UniqueKey, MutableList<SingleEmitter<*>>>()
 
     override fun <DATA, KEY : CacheKey> getData(
             config: BaseConfig<DATA>,
             mobKey: MobConfigKey,
             req: KEY,
-            net: (KEY) -> Single<MobConfigValue>): Single<DATA> {
-
-        val key = UniqueKey(config, req)
-
-        @Suppress("UNCHECKED_CAST")
-        fun getEmitters(): MutableList<SingleEmitter<DATA>>? {
-            return cacheMap[key] as? MutableList<SingleEmitter<DATA>>
-        }
-
-        /*
-       如果已经有相同的请求 则直接排队等候请求的结果
-        */
-        getEmitters()?.let {
-            return waitingForPreviousResult(it)
-        }
-
-        synchronized(cacheMap) {
-            /*
-            双重检查稳一波
-             */
-            getEmitters()?.let {
-                return waitingForPreviousResult(it)
-            }
-
-            /*
-            从网络取 取到之后通知那些在排队的
-             */
-            cacheMap[key] = mutableListOf()
-            return Single.create({ e: SingleEmitter<DATA> ->
-                repo.getData(config, mobKey, req, net)
-                        .subscribe({ data ->
-                            e.onSuccess(data)
-                            synchronized(cacheMap) {
-                                getEmitters()?.forEach { e -> e.onSuccess(data) }
-                                cacheMap.remove(key)
-                            }
-
-                        }, { error ->
-                            ConfigCenter.logger.e(error)
-                            e.onError(error)
-                            synchronized(cacheMap) {
-                                getEmitters()?.forEach { e -> e.onError(error) }
-                                cacheMap.remove(key)
-                            }
-                        })
-            })
-
-        } //synchronized
-    }
-
-    fun <DATA> waitingForPreviousResult(list: MutableList<SingleEmitter<DATA>>)
-            : Single<DATA> {
+            net: Net<KEY>): Single<DATA> {
         return Single.create({ emitter: SingleEmitter<DATA> ->
-            ConfigCenter.logger.i("已有相同配置的相同请求, 进入队列等待 位置： ${list.size}")
-            synchronized(cacheMap) {
-                list.add(emitter)
+
+            //以下代码在主线程运行
+
+            val key = UniqueKey(config, req)
+
+            @Suppress("UNCHECKED_CAST")
+            fun getEmitters(): MutableList<SingleEmitter<DATA>>? {
+                return cacheMap[key] as? MutableList<SingleEmitter<DATA>>
             }
-        })
+
+            //如果已经有相同的请求 则直接排队等候请求的结果
+            getEmitters()?.let {
+                ConfigCenter.logger.i("已有相同配置的相同请求, 进入队列等待 位置： ${it.size}")
+                it.add(emitter)
+                return@create
+            }
+
+            //从网络取 取到之后通知那些在排队的
+            cacheMap[key] = mutableListOf()
+            repo.getData(config, mobKey, req, net)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe({ data ->
+                        emitter.onSuccess(data)
+                        getEmitters()?.forEach { e -> e.onSuccess(data) }
+                        cacheMap.remove(key)
+
+                    }, { error ->
+                        ConfigCenter.logger.e(error)
+                        emitter.onError(error)
+                        getEmitters()?.forEach { e -> e.onError(error) }
+                        cacheMap.remove(key)
+                    })
+        }).subscribeOn(AndroidSchedulers.mainThread()) //Single.create
     }
 }
 
 /**
- *
- * 让同个request但不同Config 不会多次请求网络
+ * 让同个request但不同Config 不会同时多次请求网络
  */
-private class CacheRemoteRepos(private val repo: Repo) : Repository {
+private class BlockSameRequestRepo(private val repo: RemoteRepos) : Repository {
 
-    private val cacheMap = mutableMapOf<CacheKey, ConfigMap>()
+    private val waitingQueue: MutableMap<CacheKey, ConfigMap> = mutableMapOf()
 
-    class ConfigMap {
-        val map = mutableMapOf<BaseConfig<*>, SingleEmitter<*>>()
-
-        val keySet
-            get() = map.keys
-
-        val valueSet
-            get() = map.values
+    private class ConfigMap(private val map: MutableMap<BaseConfig<*>, SingleEmitter<*>>)
+        : Map<BaseConfig<*>, SingleEmitter<*>> by map {
 
         @Suppress("UNCHECKED_CAST")
         fun <T> useEmitter(config: BaseConfig<T>, value: MobConfigValue) {
@@ -263,9 +184,6 @@ private class CacheRemoteRepos(private val repo: Repo) : Repository {
         fun <T> setEmitter(config: BaseConfig<T>, emitter: SingleEmitter<T>) {
             map[config] = emitter
         }
-
-        val size: Int
-            get() = map.size
     }
 
     override fun <DATA, KEY : CacheKey> getData(
@@ -274,31 +192,25 @@ private class CacheRemoteRepos(private val repo: Repo) : Repository {
             req: KEY,
             net: (KEY) -> Single<MobConfigValue>): Single<DATA> {
 
-        /*
-       如果已经有相同的请求 则直接排队等候请求的结果
-        */
-        cacheMap[req]?.let {
+        //以下代码在主线程
+        //如果已经有相同的请求 则直接排队等候请求的结果
+        waitingQueue[req]?.let {
             return waitingForPreviousResult(config, it)
         }
 
-        synchronized(cacheMap) {
-            /*
-            双重检查稳一波
-             */
-            cacheMap[req]?.let {
+        synchronized(waitingQueue) {
+            //双重检查稳一波
+            waitingQueue[req]?.let {
                 return waitingForPreviousResult(config, it)
-
             }
-            /*
-            从网络取 取到之后通知那些在排队的
-             */
-            cacheMap[req] = ConfigMap()
+
+            //从网络取 取到之后通知那些在排队的
+            waitingQueue[req] = ConfigMap(mutableMapOf())
             return Single.create({ e: SingleEmitter<DATA> ->
-                ConfigCenter.logger.i("start network request for ${config.bssCode}")
                 repo.getData(config, mobKey, req, net)
+                        //以下代码在IO线程
                         .subscribe({ value ->
-                            ConfigCenter.logger.i("request success for $value")
-                            ConfigCenter.logger.d("网络请求在 ${Thread.currentThread()}")
+                            ConfigCenter.logger.i("网络请求成功 $value")
 
                             val d = ConfigCenter.pack(config, value)
                             e.onSuccess(d)
@@ -306,28 +218,26 @@ private class CacheRemoteRepos(private val repo: Repo) : Repository {
 
                             var map: ConfigMap? = null
 
-                            synchronized(cacheMap) {
-                                map = cacheMap.remove(req)
+                            synchronized(waitingQueue) {
+                                map = waitingQueue.remove(req)
                             }
 
-                            map?.let { _map ->
-                                for (_config in _map.keySet) {
-                                    _map.useEmitter(_config, value)
+                            map?.let {
+                                for (_config in it.keys) {
+                                    it.useEmitter(_config, value)
                                 }
                             }
 
-
                         }, { error ->
-
                             ConfigCenter.logger.e(error)
                             e.onError(error)
                             var map: ConfigMap? = null
-                            synchronized(cacheMap) {
-                                map = cacheMap.remove(req)
+                            synchronized(waitingQueue) {
+                                map = waitingQueue.remove(req)
                             }
 
-                            map?.let { _map ->
-                                for (emitter in _map.valueSet) {
+                            map?.let {
+                                for (emitter in it.values) {
                                     emitter.onError(error)
                                 }
                             }
@@ -343,10 +253,47 @@ private class CacheRemoteRepos(private val repo: Repo) : Repository {
             : Single<DATA> {
         return Single.create({ emitter: SingleEmitter<DATA> ->
             ConfigCenter.logger.i("有不同配置但相同的请求，等待网络请求返回，队列位置： ${map.size}")
-            synchronized(cacheMap) {
+            synchronized(waitingQueue) {
                 map.setEmitter(config, emitter)
             }
         })
+    }
+}
+
+/**
+ * 从网络读取，相同请求在2分钟内会读缓存
+ */
+private class RemoteRepos {
+    private val cache = LruCache<CacheKey, Pair<MobConfigValue, Long>>(6)
+    private val limit = 10 * 60 * 1000L
+
+    fun <DATA, KEY : CacheKey> getData(
+            config: BaseConfig<DATA>,
+            mobKey: MobConfigKey,
+            req: KEY,
+            net: (KEY) -> Single<MobConfigValue>): Single<MobConfigValue> {
+
+        //以下代码在主线程
+        var pair: Pair<MobConfigValue, Long>? = null
+        synchronized(cache) {
+            pair = cache[req]
+        }
+        pair?.let {
+            val (value, time) = it
+            if (System.currentTimeMillis() - time < limit) {
+                ConfigCenter.logger.i("缓存有该网络请求的数据 直接返回 ${config.bssCode}")
+                return Single.just(value)
+            }
+        }
+        ConfigCenter.logger.i("开始网络请求 ${config.bssCode}")
+        return net(req)
+                //以下代码在IO线程
+                .doOnSuccess {
+                    synchronized(cache) {
+                        cache.put(req, Pair(it, System.currentTimeMillis()))
+                    }
+                }
+                .subscribeOn(Schedulers.io())
     }
 }
 

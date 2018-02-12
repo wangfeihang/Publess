@@ -49,14 +49,17 @@ internal class Dispatcher : Distribution {
 
     @Suppress("UNCHECKED_CAST")
     override fun <D> delivery(order: BaseConfig<D>, data: D, mobValue: MobConfigValue) {
+        //IO线程
         ConfigCenter.logger.d("delivery on ${Thread.currentThread()}")
         order.bssVersion = mobValue.bssVersion
         order.data = data
-        order.whoCare.forEach { emitter -> emitter.onNext(data) }
+        for (emitter in order.whoCare) {
+            emitter.onNext(data)
+        }
     }
 
     override fun <D> pack(order: BaseConfig<D>, payload: MobConfigValue): D {
-        ConfigCenter.logger.d("start to parse MobConfigValue to data on ${Thread.currentThread()}")
+        ConfigCenter.logger.d("start to parse MobConfigValue to $order data on ${Thread.currentThread()}")
         return order.dataParser().parse(payload.config)
     }
 
@@ -68,9 +71,9 @@ internal class Dispatcher : Distribution {
             val disposable = order.update()
 
             e.setCancellable {
+                order.whoCare.remove(e)
                 disposable.dispose()
                 ConfigCenter.logger.i("dispose concern ${order.bssCode}")
-                order.whoCare.remove(e)
             }
         }, BackpressureStrategy.BUFFER).subscribeOn(AndroidSchedulers.mainThread())
     }
@@ -78,7 +81,7 @@ internal class Dispatcher : Distribution {
     override fun <D> placeOrder(order: BaseConfig<D>): Single<D> = placeOrder(order, net)
 
     private fun <D, T : CacheKey> placeOrder(order: BaseConfig<D>, net: Network<T>): Single<D> {
-        ConfigCenter.logger.d("placeOrder for ${order.bssCode}")
+        ConfigCenter.logger.d("需要$order （${order.bssCode}）的数据 on ${Thread.currentThread()}")
         val mobKey = MobConfigKey(order.bssCode, order.bssVersion)
         val req = net.extractKey(mobKey)
         return repo.getData(order, mobKey, req, net::performNetwork)

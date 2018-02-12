@@ -12,7 +12,7 @@ import java.util.List;
  * E-mail: zhangyu4@yy.com
  * YY: 909017428
  */
-@BssConfig(name = "AppBaseConfig2", bssCode = "mobby-base")
+@BssConfig(name = "SameConfig", bssCode = "mobby-base")
 public class SameConfigData {
 
     @BssValue(property = "a")
