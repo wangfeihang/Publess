@@ -22,8 +22,8 @@ internal class ConfigPluginSupport : PluginSupport {
         val loader = Class.forName(loaderClassName).getConstructor().newInstance() as PluginInitialization
         val map = mutableMapOf<Class<*>, BaseConfig<*>>()
         loader.loadInto(map)
-        ConfigCenter.logger.i("success load data class and config: $map")
         initConfig(map)
+        ConfigCenter.logger.i("success load data class and config: $map")
     }
 
     override fun initConfig(map: Map<Class<*>, BaseConfig<*>>) {
