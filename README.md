@@ -18,7 +18,7 @@ compile "com.yy.mobile:publess-annotation:${basesdk_version}"
 
 - 简单的属性配置
 
-如果要加一项业务配置，比如在**手Y基础配置**（BssCode：**mobby-base**）
+如果要加一项业务配置，比如在 **手Y基础配置** （BssCode： **mobby-base** ）
 
 ![配置中心首页][1]
 配置了如下属性：
@@ -27,7 +27,7 @@ compile "com.yy.mobile:publess-annotation:${basesdk_version}"
 | :----: | :----: |
 | test | 我就一句话 |
 
-那么在我们的代码里面，我们需要定义一个自己业务的JavaBean类，作为从配置中心取得的数据。然后在此类上面注解上**@BssConfig(name="配置的类名",bssCode="配置中心定义的业务号")**。注意配置的类名在当前包下不能有已存在的同名类，否则生成类会同名冲突。bssCode必须要跟网页版配置中心上定义的相同。然后定义一个业务所需要的属性，并加上注解**@BssValue(property = "配置中心定义的键")**，Publess就会在该属性上附上对应的值：
+那么在我们的代码里面，我们需要定义一个自己业务的JavaBean类，作为从配置中心取得的数据。然后在此类上面注解上 **@BssConfig(name="配置的类名",bssCode="配置中心定义的业务号")** 。注意配置的类名在当前包下不能有已存在的同名类，否则生成类会同名冲突。bssCode必须要跟网页版配置中心上定义的相同。然后定义一个业务所需要的属性，并加上注解 **@BssValue(property = "配置中心定义的键")** ，Publess就会在该属性上附上对应的值：
 
 ```java
 @BssConfig(name = "AppBasicsConfig", bssCode = "mobby-base")
@@ -82,11 +82,11 @@ public class AppBasicsData {
         public int gameLoadTimeout;
     }
 ```
-注意：被解析的类需要提供一个无参的构造方法，而且成员变量需要用**@SerializedName**注解防止混淆，详见Gson。如果是内部类的话，还需要` public static `的修饰符。
+注意：被解析的类需要提供一个无参的构造方法，而且成员变量需要用 **@SerializedName** 注解防止混淆，详见Gson。如果是内部类的话，还需要 ` public static ` 的修饰符。
 
 - 私有的成员变量
 
-如果数据类里面的成员变量被声明为`private`，那么还需要提供`public`的**getter/setter**方法，如下：
+如果数据类里面的成员变量被声明为 `private` ，那么还需要提供 `public` 的 **getter/setter** 方法，如下：
 ```java
     @BssValue(property = "unicom_wspx", key = "switch")
     private boolean unicomSwitch = false;
@@ -112,7 +112,7 @@ public class AppBasicsData {
 
 - kotlin支持
 
-在kotlin中使用时，成员变量需要可变。如果是使用` data class `，由于要提供无参构造函数，所以每个变量都需要有默认值。
+在kotlin中使用时，成员变量需要可变。如果是使用 `data class` ，由于要提供无参构造函数，所以每个变量都需要有默认值。
 ```kotlin
 @BssConfig(name = "KotlinConfig", bssCode = "mobby-test")
 data class KotlinData(
