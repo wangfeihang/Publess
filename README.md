@@ -13,6 +13,13 @@ kapt "com.yy.mobile:publess-compiler:${basesdk_version}"
 compile "com.yy.mobile:publess-api:${basesdk_version}"
 compile "com.yy.mobile:publess-annotation:${basesdk_version}"
 ```
+
+```
+//proguard
+-keep class * implements com.example.configcenter.PluginInitialization{*;}
+-keep class * implements com.example.configcenter.DataParser{*;}
+```
+
 # 使用
 ## 属性定义
 
