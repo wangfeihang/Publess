@@ -76,7 +76,7 @@ public class ConfigProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment env) {
         log = new Logger(processingEnv.getMessager());
-        final Map<ClassName, String> mapDataToConfig = new HashMap<>();
+        final Map<ClassName, ClassName> mapDataToConfig = new HashMap<>();
 
         try {
             checkClassAnnotation(env);
@@ -97,7 +97,7 @@ public class ConfigProcessor extends AbstractProcessor {
                 final String bssName = bssConfigAnno.name();
                 final String packageName = getPackageName(cls);
                 final ClassName dataClassName = ClassName.get((TypeElement) cls);
-                mapDataToConfig.put(dataClassName, bssName);
+                mapDataToConfig.put(dataClassName, ClassName.get(packageName, bssName));
 
                 genDataParserClass((TypeElement) cls, dataClassName, bssName, packageName);
 
@@ -345,7 +345,7 @@ public class ConfigProcessor extends AbstractProcessor {
                 .build();
     }
 
-    private void genInitClass(TypeElement pluginClass, Map<ClassName, String> mapDataToConfig) {
+    private void genInitClass(TypeElement pluginClass, Map<ClassName, ClassName> mapDataToConfig) {
         final String packageName = pluginClass.getEnclosingElement().toString();
         final String pluginName = pluginClass.getSimpleName().toString();
         // ?
@@ -362,8 +362,8 @@ public class ConfigProcessor extends AbstractProcessor {
                 .addAnnotation(Override.class)
                 .returns(TypeName.VOID)
                 .addParameter(map_class_config, "config");
-        for (Map.Entry<ClassName, String> entry : mapDataToConfig.entrySet()) {
-            loadInto.addStatement("config.put($T.class, new " + entry.getValue() + "())", entry.getKey());
+        for (Map.Entry<ClassName, ClassName> entry : mapDataToConfig.entrySet()) {
+            loadInto.addStatement("config.put($T.class, new $T())", entry.getKey(), entry.getValue());
         }
         TypeSpec cls = TypeSpec.classBuilder(pluginName + "$ConfigCenter$Initialization")
                 .addModifiers(Modifier.PUBLIC)
