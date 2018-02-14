@@ -138,7 +138,7 @@ private class BlockSameConfigRepo(private val repo: Repository) : Repository {
 
             //如果已经有相同的请求 则直接排队等候请求的结果
             getEmitters()?.let {
-                ConfigCenter.logger.i("已有相同配置的相同请求, 进入队列等待 位置： ${it.size}")
+                ConfigCenter.logger.i("已有相同配置的相同请求$config, 进入队列等待 位置： ${it.size} ${Thread.currentThread()}")
                 it.add(emitter)
                 return@create
             }
@@ -148,6 +148,7 @@ private class BlockSameConfigRepo(private val repo: Repository) : Repository {
             repo.getData(config, mobKey, req, net)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe({ data ->
+                        ConfigCenter.logger.i("分发给相同请求的相同配置$config 数量：${getEmitters()?.size}")
                         emitter.onSuccess(data)
                         getEmitters()?.forEach { e -> e.onSuccess(data) }
                         cacheMap.remove(key)
@@ -184,6 +185,12 @@ private class BlockSameRequestRepo(private val repo: RemoteRepos) : Repository {
         fun <T> setEmitter(config: BaseConfig<T>, emitter: SingleEmitter<T>) {
             map[config] = emitter
         }
+
+        override fun toString(): String {
+            return map.entries.joinToString { (config, emitter) ->
+                "$config,$emitter"
+            }
+        }
     }
 
     override fun <DATA, KEY : CacheKey> getData(
@@ -208,9 +215,10 @@ private class BlockSameRequestRepo(private val repo: RemoteRepos) : Repository {
             waitingQueue[req] = ConfigMap(mutableMapOf())
             return Single.create({ e: SingleEmitter<DATA> ->
                 repo.getData(config, mobKey, req, net)
+                        .observeOn(Schedulers.io())
                         //以下代码在IO线程
                         .subscribe({ value ->
-                            ConfigCenter.logger.i("网络请求成功 $value")
+                            ConfigCenter.logger.i("网络请求成功 $value ${Thread.currentThread()}")
 
                             val d = ConfigCenter.pack(config, value)
                             e.onSuccess(d)
@@ -220,10 +228,12 @@ private class BlockSameRequestRepo(private val repo: RemoteRepos) : Repository {
 
                             synchronized(waitingQueue) {
                                 map = waitingQueue.remove(req)
+                                ConfigCenter.logger.i("waitingQueue remove: [$map]")
                             }
 
                             map?.let {
                                 for (_config in it.keys) {
+                                    ConfigCenter.logger.i("emitter: $_config")
                                     it.useEmitter(_config, value)
                                 }
                             }
@@ -252,16 +262,16 @@ private class BlockSameRequestRepo(private val repo: RemoteRepos) : Repository {
             map: ConfigMap)
             : Single<DATA> {
         return Single.create({ emitter: SingleEmitter<DATA> ->
-            ConfigCenter.logger.i("有不同配置但相同的请求，等待网络请求返回，队列位置： ${map.size}")
             synchronized(waitingQueue) {
                 map.setEmitter(config, emitter)
+                ConfigCenter.logger.i("有不同配置但相同的请求$config $emitter，等待网络请求返回，队列： $map ${Thread.currentThread()}")
             }
         })
     }
 }
 
 /**
- * 从网络读取，相同请求在2分钟内会读缓存
+ * 从网络读取，相同请求在一定时间内会读缓存
  */
 private class RemoteRepos {
     private val cache = LruCache<CacheKey, Pair<MobConfigValue, Long>>(6)
@@ -281,19 +291,20 @@ private class RemoteRepos {
         pair?.let {
             val (value, time) = it
             if (System.currentTimeMillis() - time < limit) {
-                ConfigCenter.logger.i("缓存有该网络请求的数据 直接返回 ${config.bssCode}")
+                ConfigCenter.logger.i("缓存有该网络请求的数据 直接返回 $config ${config.bssCode}")
                 return Single.just(value)
             }
         }
-        ConfigCenter.logger.i("开始网络请求 ${config.bssCode}")
+        ConfigCenter.logger.i("开始网络请求 $config ${config.bssCode}")
         return net(req)
                 //以下代码在IO线程
                 .doOnSuccess {
                     synchronized(cache) {
+                        ConfigCenter.logger.i("记录网络请求结果 $config ${config.bssCode} ${Thread.currentThread()}")
                         cache.put(req, Pair(it, System.currentTimeMillis()))
                     }
                 }
-                .subscribeOn(Schedulers.io())
+        //.subscribeOn(Schedulers.io())
     }
 }
 
