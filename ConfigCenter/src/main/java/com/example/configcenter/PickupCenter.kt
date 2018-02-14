@@ -50,7 +50,6 @@ internal class InBox : PickupCenter {
                 .newInstance() as PluginInitialization
         val map = mutableMapOf<Class<*>, BaseConfig<*>>()
         initializer.loadInto(map)
-        ConfigCenter.logger.i("success load data class and config: $map")
         ConfigCenter.initConfig(map)
         return dataMap[dataCls] as BaseConfig<D>
     }

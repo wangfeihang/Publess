@@ -23,13 +23,13 @@ internal class ConfigPluginSupport : PluginSupport {
         val map = mutableMapOf<Class<*>, BaseConfig<*>>()
         loader.loadInto(map)
         initConfig(map)
+    }
+
+    override fun initConfig(map: Map<Class<*>, BaseConfig<*>>) {
         ConfigCenter.logger.i("success load data class and config: " +
                 map.entries.joinToString(prefix = "[", postfix = "]") { (cls, config) ->
                     "${cls.simpleName}:${config.name}"
                 })
-    }
-
-    override fun initConfig(map: Map<Class<*>, BaseConfig<*>>) {
         ConfigCenter.getDataConfigMap().putAll(map)
         for (config in map.values) {
             ConfigCenter.getClassConfigMap()[config.javaClass] = config
