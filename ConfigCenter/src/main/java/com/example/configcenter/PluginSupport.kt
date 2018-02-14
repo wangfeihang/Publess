@@ -30,6 +30,7 @@ internal class ConfigPluginSupport : PluginSupport {
                 map.entries.joinToString(prefix = "[", postfix = "]") { (cls, config) ->
                     "${cls.simpleName}:${config.name}"
                 })
+
         ConfigCenter.getDataConfigMap().putAll(map)
         for (config in map.values) {
             ConfigCenter.getClassConfigMap()[config.javaClass] = config
