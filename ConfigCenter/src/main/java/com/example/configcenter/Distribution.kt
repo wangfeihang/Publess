@@ -50,7 +50,7 @@ internal class Dispatcher : Distribution {
     @Suppress("UNCHECKED_CAST")
     override fun <D> delivery(order: BaseConfig<D>, data: D, mobValue: MobConfigValue) {
         //IO线程
-        ConfigCenter.logger.i("delivery on ${Thread.currentThread()} whoCare: ${order.whoCare.size}")
+        ConfigCenter.logger.i("监听器分发 ${order.name} ${Thread.currentThread()} 监听器数量: ${order.whoCare.size}")
         order.bssVersion = mobValue.bssVersion
         order.data = data
         for (emitter in order.whoCare) {
@@ -59,7 +59,7 @@ internal class Dispatcher : Distribution {
     }
 
     override fun <D> pack(order: BaseConfig<D>, payload: MobConfigValue): D {
-        ConfigCenter.logger.i("解析数据 $order data on ${Thread.currentThread()}")
+        ConfigCenter.logger.i("解析数据 ${order.name} data ${Thread.currentThread()}")
         return order.dataParser().parse(payload.config)
     }
 
@@ -81,7 +81,7 @@ internal class Dispatcher : Distribution {
     override fun <D> placeOrder(order: BaseConfig<D>): Single<D> = placeOrder(order, net)
 
     private fun <D, T : CacheKey> placeOrder(order: BaseConfig<D>, net: Network<T>): Single<D> {
-        ConfigCenter.logger.i("需要$order （${order.bssCode}）的数据 on ${Thread.currentThread()}")
+        ConfigCenter.logger.i("需要${order.name}（${order.bssCode}）的数据  ${Thread.currentThread()}")
         val mobKey = MobConfigKey(order.bssCode, order.bssVersion)
         val req = net.extractKey(mobKey)
         return repo.getData(order, mobKey, req, net::performNetwork)

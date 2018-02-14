@@ -3,6 +3,7 @@ package com.duowan.mobile.publess
 import android.util.Log
 import com.example.configcenter.*
 import io.reactivex.Single
+import java.util.concurrent.TimeUnit
 
 /**
  * Created by 张宇 on 2018/2/10.
@@ -24,12 +25,11 @@ class FadeNetwork : Network<CustomRequest> {
                     "user" to """{"uid":"123456","name":"i am a name"}"""
             )))
         }
+                .delay(1, TimeUnit.SECONDS)
     }
 
-    var cnt = 0
-
     override fun extractKey(key: MobConfigKey): CustomRequest {
-        return CustomRequest(key.bssCode, (cnt++ % 2).toLong())
+        return CustomRequest(key.bssCode, 0)
     }
 }
 

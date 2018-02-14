@@ -30,6 +30,8 @@ abstract class BaseConfig<D> {
 
     internal val whoCare by lazy { CopyOnWriteArrayList<FlowableEmitter<D>>() }
 
+    abstract val name: String
+
     abstract val bssCode: String
 
     abstract fun dataParser(): DataParser<D>

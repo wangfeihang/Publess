@@ -36,7 +36,6 @@ import javax.lang.model.element.VariableElement;
 @AutoService(Processor.class)
 public class ConfigProcessor extends AbstractProcessor {
 
-    private Logger log;
     private static final String packageRoot = "com.example.configcenter";
     private static final ClassName DataParser_ClsName =
             ClassName.get(packageRoot, "DataParser");
@@ -58,6 +57,9 @@ public class ConfigProcessor extends AbstractProcessor {
     private static final ClassName String_clsName = ClassName.get(String.class);
     private static final ClassName Gson_clsName = ClassName.get("com.google.gson",
             "Gson");
+    private Logger log;
+    private int tempCnt = 0;
+    private int cnt = 0;
 
     @Override
     public SourceVersion getSupportedSourceVersion() {
@@ -235,8 +237,6 @@ public class ConfigProcessor extends AbstractProcessor {
         }
     }
 
-    private int tempCnt = 0;
-
     private String generateConfigParseJson(MethodSpec.Builder methodSpec, VariableElement destEle, String valueName, String key) {
         TypeName destTypeName = TypeName.get(destEle.asType());
         if (!key.isEmpty()) {
@@ -268,8 +268,6 @@ public class ConfigProcessor extends AbstractProcessor {
         return "tmp_" + tmpCnt;
     }
 
-    private int cnt = 0;
-
     private void generateParseCondition(MethodSpec.Builder method, String property, String key, ParserGen gen) {
         method.addStatement("final String " + valueName(cnt) + " = " + getConfig(property));
         method.beginControlFlow("if(" + valueName(cnt) + " != null)");
@@ -298,10 +296,6 @@ public class ConfigProcessor extends AbstractProcessor {
         return "config.get(\"" + property + "\")";
     }
 
-    private interface ParserGen {
-        void parse(MethodSpec.Builder methodSpec, String valueName);
-    }
-
     private TypeSpec generateDataParserClass(String bssName, TypeName dataCls, Iterable<MethodSpec> methods) {
         return TypeSpec.classBuilder(bssName + "$Parser")
                 .addModifiers(Modifier.PUBLIC)
@@ -326,6 +320,13 @@ public class ConfigProcessor extends AbstractProcessor {
                 .addStatement("return $S", bssCode)
                 .build();
 
+        MethodSpec getName = MethodSpec.methodBuilder("getName")
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(Override.class)
+                .returns(String_clsName)
+                .addStatement("return $S", bssName)
+                .build();
+
         MethodSpec dataParser = MethodSpec.methodBuilder("dataParser")
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(Override.class)
@@ -333,7 +334,8 @@ public class ConfigProcessor extends AbstractProcessor {
                 .addStatement("return new $T()", ClassName.get(packageName, bssName + "$Parser"))
                 .build();
 
-        TypeSpec cls = generateDataConfigClass(bssName, dataCls, Arrays.asList(defaultValue, getBssCode, dataParser));
+        TypeSpec cls = generateDataConfigClass(bssName, dataCls,
+                Arrays.asList(defaultValue, getBssCode, getName, dataParser));
         writeFile(cls, packageName);
     }
 
@@ -454,5 +456,9 @@ public class ConfigProcessor extends AbstractProcessor {
         } catch (IOException e) {
             //e.printStackTrace();
         }
+    }
+
+    private interface ParserGen {
+        void parse(MethodSpec.Builder methodSpec, String valueName);
     }
 }

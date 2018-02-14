@@ -76,7 +76,7 @@ private class MemoryRepo(private val repo: Repository) : Repository {
             if (pair != null) {
                 val (key, time) = pair
                 if (key == req && System.currentTimeMillis() - time < cacheTime) {
-                    ConfigCenter.logger.i("内存命中 直接返回$config 的data on ${Thread.currentThread()}")
+                    ConfigCenter.logger.i("内存命中 直接返回${config.name} 的data on ${Thread.currentThread()}")
                     emitter.onSuccess(config.data)
                     return@create
                 }
@@ -88,7 +88,7 @@ private class MemoryRepo(private val repo: Repository) : Repository {
                     repo.getData(config, mobKey, req, net)
                             .observeOn(AndroidSchedulers.mainThread())
                             .doOnSuccess {
-                                ConfigCenter.logger.d("更新内存$config （${config.bssCode}）的数据")
+                                ConfigCenter.logger.d("更新内存${config.name} （${config.bssCode}）的数据 ${config.data}")
                                 lastTimeData[config] = Pair(req, System.currentTimeMillis())
                             }
                 }
@@ -104,6 +104,7 @@ private class LocalRepo : Repository {
             mobKey: MobConfigKey,
             req: KEY,
             net: Net<KEY>): Single<DATA> {
+        ConfigCenter.logger.e(IllegalStateException("网络请求失败 读取磁盘缓存 但是我还没写磁盘缓存的实现"))
         return Single.just(config.data) //有空再写
     }
 }
@@ -138,7 +139,7 @@ private class BlockSameConfigRepo(private val repo: Repository) : Repository {
 
             //如果已经有相同的请求 则直接排队等候请求的结果
             getEmitters()?.let {
-                ConfigCenter.logger.i("已有相同配置的相同请求$config, 进入队列等待 位置： ${it.size} ${Thread.currentThread()}")
+                ConfigCenter.logger.i("已有相同配置的相同请求${config.name}, 进入队列等待 位置：${it.size} ${Thread.currentThread()}")
                 it.add(emitter)
                 return@create
             }
@@ -148,7 +149,7 @@ private class BlockSameConfigRepo(private val repo: Repository) : Repository {
             repo.getData(config, mobKey, req, net)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe({ data ->
-                        ConfigCenter.logger.i("分发给相同请求的相同配置$config 数量：${getEmitters()?.size}")
+                        ConfigCenter.logger.i("分发给相同请求的相同配置${config.name} 数量：${getEmitters()?.size}")
                         emitter.onSuccess(data)
                         getEmitters()?.forEach { e -> e.onSuccess(data) }
                         cacheMap.remove(key)
@@ -175,7 +176,7 @@ private class BlockSameRequestRepo(private val repo: RemoteRepos) : Repository {
 
         @Suppress("UNCHECKED_CAST")
         fun <T> useEmitter(config: BaseConfig<T>, value: MobConfigValue) {
-            (map.remove(config) as? SingleEmitter<T>)?.let {
+            (map[config] as? SingleEmitter<T>)?.let {
                 val data: T = ConfigCenter.pack(config, value)
                 it.onSuccess(data)
                 ConfigCenter.delivery(config, data, value)
@@ -187,9 +188,7 @@ private class BlockSameRequestRepo(private val repo: RemoteRepos) : Repository {
         }
 
         override fun toString(): String {
-            return map.entries.joinToString { (config, emitter) ->
-                "$config,$emitter"
-            }
+            return map.entries.joinToString(prefix = "[", postfix = "]") { (config, _) -> config.name }
         }
     }
 
@@ -228,12 +227,11 @@ private class BlockSameRequestRepo(private val repo: RemoteRepos) : Repository {
 
                             synchronized(waitingQueue) {
                                 map = waitingQueue.remove(req)
-                                ConfigCenter.logger.i("waitingQueue remove: [$map]")
+                                ConfigCenter.logger.i("waitingQueue remove: $map")
                             }
 
                             map?.let {
                                 for (_config in it.keys) {
-                                    ConfigCenter.logger.i("emitter: $_config")
                                     it.useEmitter(_config, value)
                                 }
                             }
@@ -264,7 +262,7 @@ private class BlockSameRequestRepo(private val repo: RemoteRepos) : Repository {
         return Single.create({ emitter: SingleEmitter<DATA> ->
             synchronized(waitingQueue) {
                 map.setEmitter(config, emitter)
-                ConfigCenter.logger.i("有不同配置但相同的请求$config $emitter，等待网络请求返回，队列： $map ${Thread.currentThread()}")
+                ConfigCenter.logger.i("有不同配置但相同的请求 ${config.name}，等待网络请求返回，队列: $map ${Thread.currentThread()}")
             }
         })
     }
@@ -291,16 +289,16 @@ private class RemoteRepos {
         pair?.let {
             val (value, time) = it
             if (System.currentTimeMillis() - time < limit) {
-                ConfigCenter.logger.i("缓存有该网络请求的数据 直接返回 $config ${config.bssCode}")
+                ConfigCenter.logger.i("缓存有该网络请求的数据 直接返回 ${config.bssCode}")
                 return Single.just(value)
             }
         }
-        ConfigCenter.logger.i("开始网络请求 $config ${config.bssCode}")
+        ConfigCenter.logger.i("开始网络请求 ${config.bssCode}")
         return net(req)
                 //以下代码在IO线程
                 .doOnSuccess {
                     synchronized(cache) {
-                        ConfigCenter.logger.i("记录网络请求结果 $config ${config.bssCode} ${Thread.currentThread()}")
+                        ConfigCenter.logger.i("记录网络请求结果 ${config.bssCode} ${Thread.currentThread()}")
                         cache.put(req, Pair(it, System.currentTimeMillis()))
                     }
                 }
