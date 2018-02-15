@@ -217,8 +217,6 @@ private class BlockSameRequestRepo(private val repo: RemoteRepos) : Repository {
                         .observeOn(Schedulers.io())
                         //以下代码在IO线程
                         .subscribe({ value ->
-                            ConfigCenter.logger.i("网络请求成功 $value ${Thread.currentThread()}")
-
                             val d = ConfigCenter.pack(config, value)
                             e.onSuccess(d)
                             ConfigCenter.delivery(config, d, value)
@@ -227,7 +225,7 @@ private class BlockSameRequestRepo(private val repo: RemoteRepos) : Repository {
 
                             synchronized(waitingQueue) {
                                 map = waitingQueue.remove(req)
-                                ConfigCenter.logger.i("waitingQueue remove: $map")
+                                ConfigCenter.logger.i("waitingQueue 处理: $map")
                             }
 
                             map?.let {
@@ -295,14 +293,15 @@ private class RemoteRepos {
         }
         ConfigCenter.logger.i("开始网络请求 ${config.bssCode}")
         return net(req)
-                //以下代码在IO线程
+                //以下代码在未指定线程
                 .doOnSuccess {
+                    ConfigCenter.logger.i("网络请求成功 $it")
+                    ConfigCenter.logger.i("记录网络请求结果 ${config.bssCode} ${Thread.currentThread()}")
+
                     synchronized(cache) {
-                        ConfigCenter.logger.i("记录网络请求结果 ${config.bssCode} ${Thread.currentThread()}")
                         cache.put(req, Pair(it, System.currentTimeMillis()))
                     }
                 }
-        //.subscribeOn(Schedulers.io())
     }
 }
 

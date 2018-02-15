@@ -26,12 +26,27 @@ object Publess {
     fun <D> pull(config: BaseConfig<D>): Single<D> = ConfigCenter.placeOrder(config)
 
     @JvmStatic
+    @JvmOverloads
+    fun pull(bssCode: String? = null): Flowable<out BaseConfig<*>> = ConfigCenter.placeOrder(bssCode)
+
+    @JvmStatic
     fun <D> update(config: BaseConfig<D>): Disposable {
         return ConfigCenter.placeOrder(config)
                 .subscribe({
                     ConfigCenter.logger.i("update $it")
                 }, { error ->
                     ConfigCenter.logger.e(error)
+                })
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    fun updateAll(bssCode: String? = null): Disposable {
+        return ConfigCenter.placeOrder(bssCode)
+                .subscribe({
+                    ConfigCenter.logger.i("update $it")
+                }, {
+                    ConfigCenter.logger.e(it)
                 })
     }
 
