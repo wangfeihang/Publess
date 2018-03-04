@@ -16,8 +16,11 @@ compile "com.yy.mobile:publess-annotation:${basesdk_version}"
 
 ```
 //proguard
+-keep class com.example.configcenter.**{*;}
 -keep class * implements com.example.configcenter.PluginInitialization{*;}
 -keep class * implements com.example.configcenter.DataParser{*;}
+-keep public @interface com.example.configcenterannotation.BssConfig
+-keep @com.example.configcenterannotation.BssConfig class * { *; }
 ```
 
 # 使用
