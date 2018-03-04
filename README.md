@@ -160,7 +160,7 @@ data class Complex(
 
 BaseConfig<AppBasicsData> config = Publess.of(AppBasicsData.class);
 ```
-- 请求访问一次配置数据（并不代表网络请求）
+- 请求访问一次配置数据（网路请求还是取缓存值由Publess决定）
 
 ```java
 //fun BaseConfig<D>.pull(): io.reactivex.Single<D>
@@ -207,7 +207,7 @@ AppBasicsData data = Publess.of(AppBasicsData.class).getData();
 这个仅仅是用来兼容祖传代码的用法。无法保证拿到的数据是否是最新的、有效的。
 
 -------------
-#插件化
+# 插件化
 
 如果条件允许的话，可以在插件入口加上 **@BssInit** 和 **Publess.initPlugin(this);** 
 ```java
